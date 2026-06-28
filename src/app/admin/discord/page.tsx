@@ -308,7 +308,7 @@ function DiscordPageContent() {
     const connected = searchParams.get("connected");
     const error = searchParams.get("error");
     if (connected) toast.success("Compte Discord connecté avec succès !");
-    if (error === "oauth_failed") toast.error("Échec de la connexion Discord");
+    if (error === "oauth_failed") { const reason = searchParams.get("reason"); toast.error(`Échec de la connexion Discord${reason ? ": " + reason : ""}`); }
   }, [searchParams]);
 
   useEffect(() => {

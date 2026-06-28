@@ -21,12 +21,10 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session — required for SSR auth to work
   const { data: { user } } = await supabase.auth.getUser()
 
   const { pathname } = request.nextUrl
 
-  // Protect /admin routes — redirect to login if not authenticated
   if (pathname.startsWith('/admin') && !user) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/auth/login'
@@ -34,7 +32,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl)
   }
 
-  // Redirect authenticated users away from auth pages
   if (pathname.startsWith('/auth/') && !pathname.startsWith('/auth/callback') && user) {
     const adminUrl = request.nextUrl.clone()
     adminUrl.pathname = '/admin'
