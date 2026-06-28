@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Plane } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -20,8 +20,8 @@ export function Header() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/classement" className="flex items-center gap-3 group">
-            <div className="p-2 rounded-lg bg-cyan/10 border border-cyan/20 group-hover:border-cyan/50 transition-colors">
-              <Plane className="h-5 w-5 text-cyan" />
+            <div className="w-9 h-9 rounded-lg overflow-hidden border border-cyan/20 group-hover:border-cyan/50 transition-colors flex-shrink-0">
+              <Image src="/logo.png" alt="TraaaKe logo" width={36} height={36} className="w-full h-full object-cover" />
             </div>
             <div>
               <span className="text-lg font-bold bg-gradient-to-r from-cyan to-cyan-light bg-clip-text text-transparent">
