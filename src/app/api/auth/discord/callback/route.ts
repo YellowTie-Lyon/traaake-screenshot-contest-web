@@ -18,7 +18,8 @@ export async function GET(request: Request) {
   }
 
   try {
-    const redirectUri = `${origin}/api/auth/discord/callback`
+    const base = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://traaake.netlify.app'
+    const redirectUri = `${base}/api/auth/discord/callback`
     const tokens = await exchangeCodeForTokens(code, redirectUri)
     const discordUser = await getDiscordUser(tokens.access_token)
     const guilds = await getDiscordGuilds(tokens.access_token)
