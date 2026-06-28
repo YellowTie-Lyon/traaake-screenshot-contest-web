@@ -83,6 +83,7 @@ interface GuildCardProps {
 
 function GuildCard({ guild, environments, existingConfigs, onSaved }: GuildCardProps) {
   const [botPresent, setBotPresent] = useState<boolean | null>(null);
+  const [checkingBot, setCheckingBot] = useState(false);
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
   const [roles, setRoles] = useState<DiscordRole[]>([]);
   const [loadingResources, setLoadingResources] = useState(false);
@@ -98,26 +99,39 @@ function GuildCard({ guild, environments, existingConfigs, onSaved }: GuildCardP
     ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.webp?size=128`
     : null;
 
+  async function refreshBotPresence() {
+    setCheckingBot(true);
+    const present = await checkBotPresence(guild.id);
+    setBotPresent(present);
+    setCheckingBot(false);
+    // Auto-load resources when bot just detected
+    if (present && channels.length === 0) {
+      await loadResources(true);
+      setExpanded(true);
+    }
+  }
+
   useEffect(() => {
-    checkBotPresence(guild.id).then(setBotPresent);
+    refreshBotPresence();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [guild.id]);
 
-  async function loadResources() {
-    if (channels.length > 0) return;
+  async function loadResources(force = false) {
+    if (channels.length > 0 && !force) return;
     setLoadingResources(true);
     try {
       const [ch, ro] = await Promise.all([fetchGuildChannels(guild.id), fetchGuildRoles(guild.id)]);
       setChannels(ch);
       setRoles(ro);
     } catch {
-      toast.error("Impossible de récupérer les salons/rôles. Le bot est-il installé ?");
+      toast.error("Impossible de récupérer les salons/rôles.");
     } finally {
       setLoadingResources(false);
     }
   }
 
   async function handleExpand() {
-    if (!expanded) await loadResources();
+    if (!expanded && botPresent) await loadResources();
     setExpanded(v => !v);
   }
 
@@ -152,9 +166,7 @@ function GuildCard({ guild, environments, existingConfigs, onSaved }: GuildCardP
     }
   }
 
-  const botInviteUrl = typeof window !== "undefined"
-    ? `/api/discord/bot-invite?guildId=${guild.id}`
-    : "#";
+  const inviteUrl = `https://discord.com/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID}&permissions=8&scope=bot+applications.commands&guild_id=${guild.id}`;
 
   return (
     <Card className="glass border-border overflow-hidden">
@@ -181,9 +193,12 @@ function GuildCard({ guild, environments, existingConfigs, onSaved }: GuildCardP
             )}
           </div>
 
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {botPresent === null ? (
-              <span className="text-xs text-text-muted">Vérification...</span>
+          <div className="flex items-center gap-2 flex-shrink-0 flex-wrap justify-end">
+            {/* Bot status */}
+            {botPresent === null || checkingBot ? (
+              <span className="flex items-center gap-1 text-xs text-text-muted">
+                <Loader2 className="w-3 h-3 animate-spin" /> Vérification...
+              </span>
             ) : botPresent ? (
               <div className="flex items-center gap-1.5 text-green-400 text-xs font-medium">
                 <CheckCircle className="w-4 h-4" />
@@ -195,11 +210,7 @@ function GuildCard({ guild, environments, existingConfigs, onSaved }: GuildCardP
                   <XCircle className="w-4 h-4" />
                   Bot absent
                 </div>
-                <a
-                  href={`https://discord.com/oauth2/authorize?client_id=${process.env.NEXT_PUBLIC_DISCORD_CLIENT_ID}&permissions=8&scope=bot+applications.commands&guild_id=${guild.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <a href={inviteUrl} target="_blank" rel="noopener noreferrer">
                   <Button size="sm" variant="outline" className="text-xs h-7 gap-1 border-red-400/30 text-red-400 hover:text-red-300">
                     <Bot className="w-3 h-3" />
                     Inviter le bot
@@ -209,15 +220,26 @@ function GuildCard({ guild, environments, existingConfigs, onSaved }: GuildCardP
               </div>
             )}
 
-            <Button size="sm" variant="outline" onClick={handleExpand} className="h-8 gap-1.5">
-              <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
-              Configurer
-            </Button>
+            {/* Re-check button — shown after invite */}
+            {botPresent === false && (
+              <Button size="sm" variant="outline" onClick={refreshBotPresence} disabled={checkingBot} className="h-7 gap-1 text-xs">
+                <RefreshCw className="w-3 h-3" />
+                Re-vérifier
+              </Button>
+            )}
+
+            {/* Configure button — only when bot is present */}
+            {botPresent && (
+              <Button size="sm" variant="outline" onClick={handleExpand} className="h-8 gap-1.5">
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+                Configurer
+              </Button>
+            )}
           </div>
         </div>
       </div>
 
-      {expanded && (
+      {expanded && botPresent && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: "auto" }}
@@ -279,7 +301,13 @@ function GuildCard({ guild, environments, existingConfigs, onSaved }: GuildCardP
                 </div>
               </div>
 
-              <div className="flex justify-end">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => loadResources(true)}
+                  className="text-xs text-text-muted hover:text-cyan transition-colors flex items-center gap-1"
+                >
+                  <RefreshCw className="w-3 h-3" /> Actualiser les salons/rôles
+                </button>
                 <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1.5">
                   {saving && <Loader2 className="w-3 h-3 animate-spin" />}
                   Sauvegarder
