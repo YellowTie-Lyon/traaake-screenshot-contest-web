@@ -1,20 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Trophy,
   Settings,
   History,
-  Plane,
   ExternalLink,
+  Server,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/concours", label: "Concours", icon: Trophy },
+  { href: "/admin/environnements", label: "Environnements", icon: Server },
   { href: "/admin/reglages", label: "Réglages", icon: Settings },
   { href: "/admin/historique", label: "Historique", icon: History },
 ];
@@ -26,8 +28,8 @@ export function AdminSidebar() {
     <aside className="flex flex-col w-64 h-screen glass border-r border-border fixed left-0 top-0">
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-border">
-        <div className="p-2 rounded-lg bg-cyan/10 border border-cyan/20">
-          <Plane className="h-5 w-5 text-cyan" />
+        <div className="w-9 h-9 rounded-lg overflow-hidden border border-cyan/20 flex-shrink-0">
+          <Image src="/logo.png" alt="TraaaKe logo" width={36} height={36} className="w-full h-full object-cover" />
         </div>
         <div>
           <span className="text-lg font-bold bg-gradient-to-r from-cyan to-cyan-light bg-clip-text text-transparent">
