@@ -9,12 +9,14 @@ import {
   Settings,
   History,
   ExternalLink,
+  Server,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/concours", label: "Concours", icon: Trophy },
+  { href: "/admin/environnements", label: "Environnements", icon: Server },
   { href: "/admin/reglages", label: "Réglages", icon: Settings },
   { href: "/admin/historique", label: "Historique", icon: History },
 ];
