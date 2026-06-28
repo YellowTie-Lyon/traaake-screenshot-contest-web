@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { LayoutDashboard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 
@@ -33,8 +34,8 @@ export function Header() {
             </div>
           </Link>
 
-          {/* Nav + badge */}
-          <div className="flex items-center gap-6">
+          {/* Nav + badge + admin */}
+          <div className="flex items-center gap-4">
             <nav className="hidden sm:flex items-center gap-1">
               {navLinks.map((link) => (
                 <Link
@@ -55,6 +56,14 @@ export function Header() {
               <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
               OUVERT
             </Badge>
+            <Link
+              href="/admin"
+              title="Administration"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-text-muted hover:text-text-secondary hover:bg-surface-2 transition-colors border border-transparent hover:border-border"
+            >
+              <LayoutDashboard className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Admin</span>
+            </Link>
           </div>
         </div>
 
