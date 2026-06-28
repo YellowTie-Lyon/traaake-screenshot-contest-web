@@ -44,7 +44,8 @@ export async function GET(request: Request) {
 
     return NextResponse.redirect(`${origin}/admin/discord?connected=true`)
   } catch (err) {
-    console.error('Discord OAuth callback error:', err)
-    return NextResponse.redirect(`${origin}/admin/discord?error=oauth_failed`)
+    const message = err instanceof Error ? err.message : String(err)
+    console.error('Discord OAuth callback error:', message)
+    return NextResponse.redirect(`${origin}/admin/discord?error=oauth_failed&reason=${encodeURIComponent(message)}`)
   }
 }
