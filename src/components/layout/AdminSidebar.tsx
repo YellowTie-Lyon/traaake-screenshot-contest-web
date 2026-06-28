@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   Trophy,
@@ -10,19 +10,50 @@ import {
   History,
   ExternalLink,
   Server,
+  Bot,
+  LogOut,
+  ChevronDown,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUser } from "@/features/auth/hooks";
+import { signOut } from "@/features/auth/api";
+import { useState } from "react";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/admin/concours", label: "Concours", icon: Trophy },
+  { href: "/admin/discord", label: "Discord", icon: Bot },
   { href: "/admin/environnements", label: "Environnements", icon: Server },
   { href: "/admin/reglages", label: "Réglages", icon: Settings },
   { href: "/admin/historique", label: "Historique", icon: History },
 ];
 
+const roleLabel: Record<string, string> = {
+  owner: "Propriétaire",
+  administrator: "Administrateur",
+  moderator: "Modérateur",
+  viewer: "Observateur",
+};
+
 export function AdminSidebar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { profile } = useUser();
+  const [signingOut, setSigningOut] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await signOut();
+      router.push("/auth/login");
+    } finally {
+      setSigningOut(false);
+    }
+  }
+
+  const displayName = profile?.display_name ?? profile?.discord_display_name ?? "Utilisateur";
+  const avatarUrl = profile?.discord_avatar_url;
 
   return (
     <aside className="flex flex-col w-64 h-screen glass border-r border-border fixed left-0 top-0">
@@ -69,6 +100,7 @@ export function AdminSidebar() {
           <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
           <span className="text-xs text-text-secondary">Bot en ligne</span>
         </div>
+
         <Link
           href="/classement"
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-text-muted hover:text-text-secondary transition-colors"
@@ -76,6 +108,42 @@ export function AdminSidebar() {
           <ExternalLink className="h-3.5 w-3.5" />
           Voir le site public
         </Link>
+
+        {/* User menu */}
+        <div className="relative">
+          <button
+            onClick={() => setUserMenuOpen(v => !v)}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-surface-2 transition-colors"
+          >
+            {avatarUrl ? (
+              <Image src={avatarUrl} alt={displayName} width={28} height={28} className="rounded-full border border-border flex-shrink-0" />
+            ) : (
+              <div className="w-7 h-7 rounded-full bg-cyan/20 border border-cyan/30 flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-bold text-cyan">{displayName.charAt(0).toUpperCase()}</span>
+              </div>
+            )}
+            <div className="flex-1 text-left min-w-0">
+              <p className="text-xs font-medium text-text-primary truncate">{displayName}</p>
+              {profile?.role && (
+                <p className="text-[10px] text-text-muted">{roleLabel[profile.role] ?? profile.role}</p>
+              )}
+            </div>
+            <ChevronDown className={cn("w-3.5 h-3.5 text-text-muted transition-transform flex-shrink-0", userMenuOpen && "rotate-180")} />
+          </button>
+
+          {userMenuOpen && (
+            <div className="absolute bottom-full left-0 right-0 mb-1 glass border border-border rounded-lg overflow-hidden shadow-lg">
+              <button
+                onClick={handleSignOut}
+                disabled={signingOut}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                {signingOut ? "Déconnexion..." : "Se déconnecter"}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );
