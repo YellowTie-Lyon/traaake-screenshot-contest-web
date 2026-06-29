@@ -7,6 +7,8 @@ export interface DbEnvironment {
   name: EnvironmentName
   label: string
   is_active: boolean
+  discord_bot_token: string | null
+  discord_app_id: string | null
   created_at: string
   updated_at: string
 }
