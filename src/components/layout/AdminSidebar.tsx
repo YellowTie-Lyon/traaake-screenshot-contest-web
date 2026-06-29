@@ -60,11 +60,11 @@ export function AdminSidebar() {
       {/* Logo */}
       <div className="flex items-center gap-3 px-6 py-5 border-b border-border">
         <div className="w-9 h-9 rounded-lg overflow-hidden border border-cyan/20 flex-shrink-0">
-          <Image src="/logo.png" alt="TraaaKe logo" width={36} height={36} className="w-full h-full object-cover" />
+          <Image src="/logo.png" alt="TraKr logo" width={36} height={36} className="w-full h-full object-cover" />
         </div>
         <div>
           <span className="text-lg font-bold bg-gradient-to-r from-cyan to-cyan-light bg-clip-text text-transparent">
-            TraaaKe
+            TraKr
           </span>
           <p className="text-xs text-text-muted">Admin Panel</p>
         </div>

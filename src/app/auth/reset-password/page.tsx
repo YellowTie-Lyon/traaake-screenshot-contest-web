@@ -44,7 +44,7 @@ export default function ResetPasswordPage() {
       >
         <div className="flex flex-col items-center gap-3 mb-8">
           <div className="w-12 h-12 rounded-xl overflow-hidden border border-cyan/20">
-            <Image src="/logo.png" alt="TraaaKe" width={48} height={48} className="w-full h-full object-cover" />
+            <Image src="/logo.png" alt="TraKr" width={48} height={48} className="w-full h-full object-cover" />
           </div>
           <p className="text-sm text-text-muted">Nouveau mot de passe</p>
         </div>

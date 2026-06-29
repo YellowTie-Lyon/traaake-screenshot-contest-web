@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Trophy, Star, Award, TrendingUp, Users, Zap, Heart } from "lucide-react";
 import Image from "next/image";
 import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -323,6 +324,7 @@ export default function ClassementPage() {
           </>
         )}
       </main>
+      <Footer />
     </div>
   );
 }

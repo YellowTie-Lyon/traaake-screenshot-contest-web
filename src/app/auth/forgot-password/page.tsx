@@ -38,7 +38,7 @@ export default function ForgotPasswordPage() {
       >
         <div className="flex flex-col items-center gap-3 mb-8">
           <div className="w-12 h-12 rounded-xl overflow-hidden border border-cyan/20">
-            <Image src="/logo.png" alt="TraaaKe" width={48} height={48} className="w-full h-full object-cover" />
+            <Image src="/logo.png" alt="TraKr" width={48} height={48} className="w-full h-full object-cover" />
           </div>
           <div className="text-center">
             <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan to-cyan-light bg-clip-text text-transparent">
