@@ -14,7 +14,7 @@ export async function GET(request: Request) {
   const origin = url.origin
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/admin/discord?error=no_code`)
+    return NextResponse.redirect(`${origin}/gestion/discord?error=no_code`)
   }
 
   try {
@@ -43,10 +43,10 @@ export async function GET(request: Request) {
       discord_last_sync: new Date().toISOString(),
     }).eq('id', user.id)
 
-    return NextResponse.redirect(`${origin}/admin/discord?connected=true`)
+    return NextResponse.redirect(`${origin}/gestion/discord?connected=true`)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('Discord OAuth callback error:', message)
-    return NextResponse.redirect(`${origin}/admin/discord?error=oauth_failed&reason=${encodeURIComponent(message)}`)
+    return NextResponse.redirect(`${origin}/gestion/discord?error=oauth_failed&reason=${encodeURIComponent(message)}`)
   }
 }

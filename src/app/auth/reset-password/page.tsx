@@ -27,7 +27,7 @@ export default function ResetPasswordPage() {
     try {
       await updatePassword(password);
       toast.success("Mot de passe mis à jour");
-      router.push("/admin");
+      router.push("/gestion");
     } catch {
       toast.error("Erreur lors de la mise à jour du mot de passe");
     } finally {

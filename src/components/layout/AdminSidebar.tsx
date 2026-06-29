@@ -4,28 +4,22 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import {
-  LayoutDashboard,
-  Trophy,
-  Settings,
-  History,
-  ExternalLink,
-  Server,
-  Bot,
-  LogOut,
-  ChevronDown,
+  LayoutDashboard, Trophy, Settings, History, ExternalLink,
+  Server, Bot, LogOut, ChevronDown, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/features/auth/hooks";
 import { signOut } from "@/features/auth/api";
 import { useState } from "react";
+import type { TabSlug } from "@/lib/supabase/types";
 
-const navItems = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
-  { href: "/admin/concours", label: "Concours", icon: Trophy },
-  { href: "/admin/discord", label: "Discord", icon: Bot },
-  { href: "/admin/environnements", label: "Environnements", icon: Server },
-  { href: "/admin/reglages", label: "Réglages", icon: Settings },
-  { href: "/admin/historique", label: "Historique", icon: History },
+const allNavItems: { href: string; label: string; icon: React.ElementType; exact?: boolean; slug: TabSlug }[] = [
+  { href: "/gestion", label: "Dashboard", icon: LayoutDashboard, exact: true, slug: "dashboard" },
+  { href: "/gestion/concours", label: "Concours", icon: Trophy, slug: "concours" },
+  { href: "/gestion/discord", label: "Discord", icon: Bot, slug: "discord" },
+  { href: "/gestion/environnements", label: "Environnements", icon: Server, slug: "environnements" },
+  { href: "/gestion/reglages", label: "Réglages", icon: Settings, slug: "reglages" },
+  { href: "/gestion/historique", label: "Historique", icon: History, slug: "historique" },
 ];
 
 const roleLabel: Record<string, string> = {
@@ -41,6 +35,13 @@ export function AdminSidebar() {
   const { profile } = useUser();
   const [signingOut, setSigningOut] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+
+  const isOwner = profile?.role === 'owner';
+
+  // Filter nav items by permissions
+  const navItems = allNavItems.filter(item =>
+    isOwner || (profile?.allowed_tabs ?? []).includes(item.slug)
+  );
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -71,20 +72,14 @@ export function AdminSidebar() {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.map((item) => {
-          const active = item.exact
-            ? pathname === item.href
-            : pathname.startsWith(item.href);
+          const active = item.exact ? pathname === item.href : pathname.startsWith(item.href);
           return (
-            <Link
-              key={item.href}
-              href={item.href}
+            <Link key={item.href} href={item.href}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
-                active
-                  ? "bg-cyan/10 border border-cyan/20 text-cyan"
-                  : "text-text-secondary hover:text-text-primary hover:bg-surface-2"
+                active ? "bg-cyan/10 border border-cyan/20 text-cyan" : "text-text-secondary hover:text-text-primary hover:bg-surface-2"
               )}
             >
               <item.icon className="h-4 w-4" />
@@ -92,17 +87,24 @@ export function AdminSidebar() {
             </Link>
           );
         })}
+
+        {/* Utilisateurs — owner only */}
+        {isOwner && (
+          <Link href="/gestion/utilisateurs"
+            className={cn(
+              "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all",
+              pathname.startsWith("/gestion/utilisateurs") ? "bg-cyan/10 border border-cyan/20 text-cyan" : "text-text-secondary hover:text-text-primary hover:bg-surface-2"
+            )}
+          >
+            <Users className="h-4 w-4" />
+            Utilisateurs
+          </Link>
+        )}
       </nav>
 
       {/* Bottom */}
       <div className="px-4 py-4 border-t border-border space-y-3">
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-2">
-          <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-xs text-text-secondary">Bot en ligne</span>
-        </div>
-
-        <Link
-          href="/classement"
+        <Link href="/classement"
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-text-muted hover:text-text-secondary transition-colors"
         >
           <ExternalLink className="h-3.5 w-3.5" />
@@ -111,8 +113,7 @@ export function AdminSidebar() {
 
         {/* User menu */}
         <div className="relative">
-          <button
-            onClick={() => setUserMenuOpen(v => !v)}
+          <button onClick={() => setUserMenuOpen(v => !v)}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-surface-2 transition-colors"
           >
             {avatarUrl ? (
@@ -124,18 +125,14 @@ export function AdminSidebar() {
             )}
             <div className="flex-1 text-left min-w-0">
               <p className="text-xs font-medium text-text-primary truncate">{displayName}</p>
-              {profile?.role && (
-                <p className="text-[10px] text-text-muted">{roleLabel[profile.role] ?? profile.role}</p>
-              )}
+              {profile?.role && <p className="text-[10px] text-text-muted">{roleLabel[profile.role] ?? profile.role}</p>}
             </div>
             <ChevronDown className={cn("w-3.5 h-3.5 text-text-muted transition-transform flex-shrink-0", userMenuOpen && "rotate-180")} />
           </button>
 
           {userMenuOpen && (
             <div className="absolute bottom-full left-0 right-0 mb-1 glass border border-border rounded-lg overflow-hidden shadow-lg">
-              <button
-                onClick={handleSignOut}
-                disabled={signingOut}
+              <button onClick={handleSignOut} disabled={signingOut}
                 className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-400 hover:bg-red-500/10 transition-colors"
               >
                 <LogOut className="w-3.5 h-3.5" />

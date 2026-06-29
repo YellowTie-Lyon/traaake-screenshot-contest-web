@@ -88,10 +88,22 @@ export interface DbParticipation {
   submitted_at: string
 }
 
+export type TabSlug = 'dashboard' | 'concours' | 'discord' | 'environnements' | 'reglages' | 'historique' | 'utilisateurs'
+
+export const ALL_TABS: { slug: TabSlug; label: string }[] = [
+  { slug: 'dashboard', label: 'Dashboard' },
+  { slug: 'concours', label: 'Concours' },
+  { slug: 'discord', label: 'Discord' },
+  { slug: 'environnements', label: 'Environnements' },
+  { slug: 'reglages', label: 'Réglages' },
+  { slug: 'historique', label: 'Historique' },
+]
+
 export interface DbUserProfile {
   id: string
   role: UserRole
   display_name: string | null
+  allowed_tabs: TabSlug[]
   discord_id: string | null
   discord_username: string | null
   discord_display_name: string | null
