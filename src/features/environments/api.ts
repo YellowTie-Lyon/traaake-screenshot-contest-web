@@ -5,7 +5,7 @@ export async function getEnvironments(): Promise<DbEnvironment[]> {
   if (!supabase) return []
   const { data, error } = await supabase
     .from('environments')
-    .select('id, name, label, is_active, discord_app_id, created_at, updated_at')
+    .select('*')
     .order('name')
   if (error) throw error
   return (data ?? []) as DbEnvironment[]
@@ -18,7 +18,7 @@ export async function getEnvironmentWithSettings(envName: string): Promise<{
   if (!supabase) return null
   const { data: env, error: envError } = await supabase
     .from('environments')
-    .select('id, name, label, is_active, discord_app_id, created_at, updated_at')
+    .select('*')
     .eq('name', envName)
     .single()
   if (envError || !env) return null

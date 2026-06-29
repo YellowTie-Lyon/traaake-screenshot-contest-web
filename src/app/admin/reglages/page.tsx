@@ -14,10 +14,57 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SupabaseBanner } from "@/components/admin/SupabaseBanner";
 import { EnvironmentBadge } from "@/components/admin/EnvironmentBadge";
 import { getEnvironments, getEnvironmentWithSettings } from "@/features/environments/api";
-import { updateSettings } from "@/features/settings/api";
+import { upsertSettings } from "@/features/settings/api";
 import { isSupabaseConfigured } from "@/lib/supabase/isConfigured";
-import { mockAdminSettings } from "@/data/mock";
 import type { DbContestSettings, DbEnvironment, EnvironmentName } from "@/lib/supabase/types";
+
+const DAYS = [
+  { value: 'monday', label: 'Lundi' },
+  { value: 'tuesday', label: 'Mardi' },
+  { value: 'wednesday', label: 'Mercredi' },
+  { value: 'thursday', label: 'Jeudi' },
+  { value: 'friday', label: 'Vendredi' },
+  { value: 'saturday', label: 'Samedi' },
+  { value: 'sunday', label: 'Dimanche' },
+];
+
+const DEFAULT_FORM = {
+  contest_title: '',
+  guild_id: '',
+  contest_channel_id: '',
+  admin_role_id: '',
+  photographer_role_id: '',
+  announcement_message: '📸 Le concours screenshot est ouvert ! Postez vos plus belles captures dans ce salon.',
+  allowed_reaction: '❤️',
+  points_1st: 100,
+  points_2nd: 75,
+  points_3rd: 50,
+  is_active: false,
+  open_day: 'wednesday',
+  open_time: '18:00',
+  close_day: 'wednesday',
+  close_time: '20:00',
+  timezone: 'Europe/Paris',
+  auto_mode_enabled: false,
+  delete_invalid_messages: true,
+  delete_invalid_reactions: true,
+  allow_text: false,
+  allow_video: false,
+};
+
+function DaySelect({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  return (
+    <select
+      value={value}
+      onChange={e => onChange(e.target.value)}
+      className="w-full appearance-none bg-surface-2 border border-border rounded-lg px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-cyan/50"
+    >
+      {DAYS.map(d => (
+        <option key={d.value} value={d.value}>{d.label}</option>
+      ))}
+    </select>
+  );
+}
 
 export default function ReglagesPage() {
   const configured = isSupabaseConfigured();
@@ -26,29 +73,7 @@ export default function ReglagesPage() {
   const [settings, setSettings] = useState<DbContestSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
-  // local form state — mirrors DbContestSettings fields we edit
-  const [form, setForm] = useState({
-    guild_id: '',
-    contest_channel_id: '',
-    admin_role_id: '',
-    photographer_role_id: '',
-    announcement_message: mockAdminSettings.announcementMessage,
-    allowed_reaction: '❤️',
-    open_day: mockAdminSettings.openDay,
-    open_time: mockAdminSettings.openTime,
-    close_day: mockAdminSettings.closeDay,
-    close_time: mockAdminSettings.closeTime,
-    timezone: 'Europe/Paris',
-    participation_points: mockAdminSettings.participationPoints,
-    top_3_points: mockAdminSettings.top3Points,
-    winner_points: mockAdminSettings.winnerPoints,
-    auto_mode_enabled: mockAdminSettings.autoMode,
-    delete_invalid_messages: true,
-    delete_invalid_reactions: true,
-    allow_text: false,
-    allow_video: false,
-  });
+  const [form, setForm] = useState(DEFAULT_FORM);
 
   useEffect(() => {
     if (!configured) { setLoading(false); return; }
@@ -69,26 +94,31 @@ export default function ReglagesPage() {
         setSettings(data.settings);
         const s = data.settings;
         setForm({
+          contest_title: s.contest_title ?? '',
           guild_id: s.guild_id ?? '',
           contest_channel_id: s.contest_channel_id ?? '',
           admin_role_id: s.admin_role_id ?? '',
           photographer_role_id: s.photographer_role_id ?? '',
-          announcement_message: s.announcement_message ?? '',
+          announcement_message: s.announcement_message ?? DEFAULT_FORM.announcement_message,
           allowed_reaction: s.allowed_reaction,
+          points_1st: s.points_1st ?? 100,
+          points_2nd: s.points_2nd ?? 75,
+          points_3rd: s.points_3rd ?? 50,
+          is_active: s.is_active ?? false,
           open_day: s.open_day,
           open_time: s.open_time,
           close_day: s.close_day,
           close_time: s.close_time,
           timezone: s.timezone,
-          participation_points: s.participation_points,
-          top_3_points: s.top_3_points,
-          winner_points: s.winner_points,
           auto_mode_enabled: s.auto_mode_enabled,
           delete_invalid_messages: s.delete_invalid_messages,
           delete_invalid_reactions: s.delete_invalid_reactions,
           allow_text: s.allow_text,
           allow_video: s.allow_video,
         });
+      } else {
+        setSettings(null);
+        setForm(DEFAULT_FORM);
       }
     }).finally(() => setLoading(false));
   }, [selectedEnvId, configured, environments]);
@@ -98,14 +128,15 @@ export default function ReglagesPage() {
   }
 
   async function handleSave() {
-    if (!configured || !settings) {
-      toast.success("Paramètres sauvegardés (mode mocké)");
-      return;
-    }
+    if (!configured || !selectedEnvId) return;
     setSaving(true);
     try {
-      await updateSettings(settings.id, form);
-      toast.success("Réglages sauvegardés avec succès");
+      if (settings) {
+        await upsertSettings(selectedEnvId, form);
+      } else {
+        await upsertSettings(selectedEnvId, form);
+      }
+      toast.success("Réglages sauvegardés");
     } catch {
       toast.error("Erreur lors de la sauvegarde");
     } finally {
@@ -118,7 +149,6 @@ export default function ReglagesPage() {
       <div className="max-w-3xl space-y-8">
         {!configured && <SupabaseBanner />}
 
-        {/* Environment selector */}
         {configured && environments.length > 0 && (
           <div className="flex items-center gap-3">
             <span className="text-sm text-text-muted">Environnement :</span>
@@ -141,7 +171,7 @@ export default function ReglagesPage() {
 
         {loading ? (
           <div className="space-y-4">
-            {[1,2,3].map(i => <Skeleton key={i} className="h-40 rounded-xl" />)}
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-40 rounded-xl" />)}
           </div>
         ) : (
           <>
@@ -149,31 +179,42 @@ export default function ReglagesPage() {
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
               <Card className="glass p-6 space-y-4">
                 <h2 className="text-xs font-semibold text-cyan uppercase tracking-widest">Discord</h2>
+                <p className="text-xs text-text-muted">Ces IDs sont automatiquement remplis depuis l'onglet Discord après avoir configuré un serveur.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label>Titre du concours</Label>
+                    <Input value={form.contest_title} onChange={e => setField('contest_title', e.target.value)} placeholder="Concours Screenshot #1" />
+                  </div>
                   <div className="space-y-2">
-                    <Label>Guild ID (Serveur Discord)</Label>
-                    <Input value={form.guild_id} onChange={e => setField('guild_id', e.target.value)} placeholder="123456789012345678" />
+                    <Label>Guild ID (Serveur)</Label>
+                    <Input value={form.guild_id} onChange={e => setField('guild_id', e.target.value)} placeholder="123456789012345678" className="font-mono text-xs" />
                   </div>
                   <div className="space-y-2">
                     <Label>Salon concours ID</Label>
-                    <Input value={form.contest_channel_id} onChange={e => setField('contest_channel_id', e.target.value)} placeholder="123456789012345678" />
+                    <Input value={form.contest_channel_id} onChange={e => setField('contest_channel_id', e.target.value)} placeholder="123456789012345678" className="font-mono text-xs" />
                   </div>
                   <div className="space-y-2">
                     <Label>Rôle admin ID</Label>
-                    <Input value={form.admin_role_id} onChange={e => setField('admin_role_id', e.target.value)} placeholder="123456789012345678" />
+                    <Input value={form.admin_role_id} onChange={e => setField('admin_role_id', e.target.value)} placeholder="123456789012345678" className="font-mono text-xs" />
                   </div>
                   <div className="space-y-2">
                     <Label>Rôle photographe ID</Label>
-                    <Input value={form.photographer_role_id} onChange={e => setField('photographer_role_id', e.target.value)} placeholder="123456789012345678" />
+                    <Input value={form.photographer_role_id} onChange={e => setField('photographer_role_id', e.target.value)} placeholder="123456789012345678" className="font-mono text-xs" />
                   </div>
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label>Réaction autorisée</Label>
+                  <div className="space-y-2">
+                    <Label>Réaction de vote</Label>
                     <Input value={form.allowed_reaction} onChange={e => setField('allowed_reaction', e.target.value)} placeholder="❤️" className="w-24" />
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <Label>Message d&apos;annonce</Label>
-                  <Textarea value={form.announcement_message} onChange={e => setField('announcement_message', e.target.value)} rows={3} className="resize-none" />
+                  <Label>Message d&apos;annonce du concours</Label>
+                  <Textarea
+                    value={form.announcement_message}
+                    onChange={e => setField('announcement_message', e.target.value)}
+                    rows={3}
+                    className="resize-none"
+                    placeholder="Message posté par le bot lors de l'ouverture du concours..."
+                  />
                 </div>
               </Card>
             </motion.div>
@@ -181,11 +222,11 @@ export default function ReglagesPage() {
             {/* Horaires */}
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
               <Card className="glass p-6 space-y-4">
-                <h2 className="text-xs font-semibold text-cyan uppercase tracking-widest">Horaires</h2>
+                <h2 className="text-xs font-semibold text-cyan uppercase tracking-widest">Horaires automatiques</h2>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label>Jour d&apos;ouverture</Label>
-                    <Input value={form.open_day} onChange={e => setField('open_day', e.target.value)} placeholder="wednesday" />
+                    <DaySelect value={form.open_day} onChange={v => setField('open_day', v)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Heure d&apos;ouverture</Label>
@@ -193,7 +234,7 @@ export default function ReglagesPage() {
                   </div>
                   <div className="space-y-2">
                     <Label>Jour de clôture</Label>
-                    <Input value={form.close_day} onChange={e => setField('close_day', e.target.value)} placeholder="wednesday" />
+                    <DaySelect value={form.close_day} onChange={v => setField('close_day', v)} />
                   </div>
                   <div className="space-y-2">
                     <Label>Heure de clôture</Label>
@@ -213,16 +254,16 @@ export default function ReglagesPage() {
                 <h2 className="text-xs font-semibold text-cyan uppercase tracking-widest">Points</h2>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Participation</Label>
-                    <Input type="number" value={form.participation_points} onChange={e => setField('participation_points', Number(e.target.value))} />
+                    <Label>1ère place</Label>
+                    <Input type="number" min={0} value={form.points_1st} onChange={e => setField('points_1st', Number(e.target.value))} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Top 3</Label>
-                    <Input type="number" value={form.top_3_points} onChange={e => setField('top_3_points', Number(e.target.value))} />
+                    <Label>2ème place</Label>
+                    <Input type="number" min={0} value={form.points_2nd} onChange={e => setField('points_2nd', Number(e.target.value))} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Gagnant</Label>
-                    <Input type="number" value={form.winner_points} onChange={e => setField('winner_points', Number(e.target.value))} />
+                    <Label>3ème place</Label>
+                    <Input type="number" min={0} value={form.points_3rd} onChange={e => setField('points_3rd', Number(e.target.value))} />
                   </div>
                 </div>
               </Card>
@@ -231,15 +272,16 @@ export default function ReglagesPage() {
             {/* Options */}
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
               <Card className="glass p-6 space-y-4">
-                <h2 className="text-xs font-semibold text-cyan uppercase tracking-widest">Options</h2>
+                <h2 className="text-xs font-semibold text-cyan uppercase tracking-widest">Options du bot</h2>
                 {[
-                  { key: 'auto_mode_enabled' as const, label: 'Mode automatique', desc: 'Ouverture/clôture automatique selon les horaires' },
-                  { key: 'delete_invalid_messages' as const, label: 'Supprimer messages invalides', desc: 'Le bot supprime les messages sans image' },
-                  { key: 'delete_invalid_reactions' as const, label: 'Supprimer réactions invalides', desc: 'Le bot supprime les réactions non autorisées' },
+                  { key: 'is_active' as const, label: 'Concours actif', desc: 'Active la détection de screenshots et les votes dans le salon' },
+                  { key: 'auto_mode_enabled' as const, label: 'Ouverture automatique', desc: 'Ouverture/clôture automatique chaque mercredi à 18h' },
+                  { key: 'delete_invalid_messages' as const, label: 'Supprimer messages invalides', desc: 'Le bot supprime les messages sans image dans le salon concours' },
+                  { key: 'delete_invalid_reactions' as const, label: 'Supprimer réactions invalides', desc: 'Le bot supprime les réactions autres que celle autorisée' },
                   { key: 'allow_text' as const, label: 'Autoriser texte', desc: 'Messages texte acceptés en plus des images' },
                   { key: 'allow_video' as const, label: 'Autoriser vidéos', desc: 'Vidéos acceptées comme participations' },
                 ].map(({ key, label, desc }) => (
-                  <div key={key} className="flex items-center justify-between">
+                  <div key={key} className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-medium text-text-primary">{label}</p>
                       <p className="text-xs text-text-muted">{desc}</p>
@@ -248,7 +290,7 @@ export default function ReglagesPage() {
                       role="switch"
                       aria-checked={form[key]}
                       onClick={() => setField(key, !form[key])}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${form[key] ? 'bg-cyan' : 'bg-surface-2 border border-border'}`}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${form[key] ? 'bg-cyan' : 'bg-surface-2 border border-border'}`}
                     >
                       <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${form[key] ? 'translate-x-6' : 'translate-x-1'}`} />
                     </button>
@@ -257,7 +299,7 @@ export default function ReglagesPage() {
               </Card>
             </motion.div>
 
-            <Button className="gap-2" onClick={handleSave} disabled={saving}>
+            <Button className="gap-2" onClick={handleSave} disabled={saving || !configured}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               {saving ? 'Sauvegarde...' : 'Sauvegarder les réglages'}
             </Button>
