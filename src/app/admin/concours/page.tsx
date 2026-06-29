@@ -1,36 +1,75 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
-import { Play, Pause, StopCircle, Archive, Loader2, AlertCircle } from "lucide-react";
+import { Play, Pause, StopCircle, Archive, Loader2, Plus, Trophy, Image as ImageIcon, Heart, Clock } from "lucide-react";
+import Image from "next/image";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { SupabaseBanner } from "@/components/admin/SupabaseBanner";
 import { EnvironmentBadge } from "@/components/admin/EnvironmentBadge";
 import { getEnvironments } from "@/features/environments/api";
-import { getActiveContest, updateContestStatus } from "@/features/contests/api";
+import { getActiveContest, updateContestStatus, createContest, getContestParticipations, type Participation } from "@/features/contests/api";
 import { isSupabaseConfigured } from "@/lib/supabase/isConfigured";
-import { mockCurrentContest } from "@/data/mock";
+import { supabase } from "@/lib/supabase/client";
 import type { DbContest, DbEnvironment, ContestStatus, EnvironmentName } from "@/lib/supabase/types";
 
-const statusVariants: Record<ContestStatus, "open" | "paused" | "closed" | "draft" | "archived"> = {
+const STATUS_VARIANTS: Record<ContestStatus, "open" | "paused" | "closed" | "draft" | "archived"> = {
   open: "open", paused: "paused", closed: "closed", draft: "draft", archived: "archived",
 };
-const statusLabels: Record<ContestStatus, string> = {
+const STATUS_LABELS: Record<ContestStatus, string> = {
   open: "Ouvert", paused: "Suspendu", closed: "Fermé", draft: "Brouillon", archived: "Archivé",
 };
+
+function ParticipationCard({ p, rank }: { p: Participation; rank: number }) {
+  const name = p.participant?.discord_display_name ?? p.participant?.discord_username ?? "Inconnu";
+  const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;
+
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-lg bg-surface-2 border border-border-subtle">
+      <div className="flex-shrink-0 w-6 text-center text-xs text-text-muted font-mono pt-1">
+        {medal ?? `#${rank}`}
+      </div>
+      {p.image_url ? (
+        <div className="w-16 h-16 rounded-lg overflow-hidden flex-shrink-0 border border-border">
+          <Image src={p.image_url} alt="screenshot" width={64} height={64} className="w-full h-full object-cover" />
+        </div>
+      ) : (
+        <div className="w-16 h-16 rounded-lg flex-shrink-0 border border-border bg-surface flex items-center justify-center">
+          <ImageIcon className="w-5 h-5 text-text-muted" />
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-text-primary truncate">{name}</p>
+        <p className="text-xs text-text-muted flex items-center gap-1 mt-0.5">
+          <Clock className="w-3 h-3" />
+          {new Date(p.submitted_at).toLocaleString("fr-FR")}
+        </p>
+      </div>
+      <div className="flex items-center gap-1 text-sm font-semibold text-cyan flex-shrink-0">
+        <Heart className="w-3.5 h-3.5" />
+        {p.vote_count}
+      </div>
+    </div>
+  );
+}
 
 export default function ConcoursPage() {
   const configured = isSupabaseConfigured();
   const [environments, setEnvironments] = useState<DbEnvironment[]>([]);
   const [selectedEnvId, setSelectedEnvId] = useState<string>('');
   const [contest, setContest] = useState<DbContest | null>(null);
+  const [participations, setParticipations] = useState<Participation[]>([]);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     if (!configured) { setLoading(false); return; }
@@ -41,37 +80,73 @@ export default function ConcoursPage() {
     });
   }, [configured]);
 
-  useEffect(() => {
+  const loadContest = useCallback(async () => {
     if (!selectedEnvId || !configured) return;
     setLoading(true);
-    getActiveContest(selectedEnvId)
-      .then(c => setContest(c))
-      .finally(() => setLoading(false));
+    const c = await getActiveContest(selectedEnvId);
+    setContest(c);
+    if (c) {
+      const parts = await getContestParticipations(c.id);
+      setParticipations(parts);
+    } else {
+      setParticipations([]);
+    }
+    setLoading(false);
   }, [selectedEnvId, configured]);
 
+  useEffect(() => {
+    loadContest();
+  }, [loadContest]);
+
+  // Realtime subscription on participations
+  useEffect(() => {
+    if (!contest?.id || !supabase) return;
+    const channel = supabase
+      .channel(`participations-${contest.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'participations', filter: `contest_id=eq.${contest.id}` }, () => {
+        getContestParticipations(contest.id).then(setParticipations);
+      })
+      .subscribe();
+    return () => { supabase?.removeChannel(channel); };
+  }, [contest?.id]);
+
   async function handleStatusChange(newStatus: ContestStatus) {
-    if (!contest || !configured) {
-      toast.success(`Action mockée — Connectez Supabase en Phase 2.`);
-      return;
-    }
+    if (!contest) return;
     setUpdating(true);
     try {
       await updateContestStatus(contest.id, newStatus);
       setContest(prev => prev ? { ...prev, status: newStatus } : null);
-      toast.success(`Statut mis à jour : ${statusLabels[newStatus]}`);
+      toast.success(`Concours ${STATUS_LABELS[newStatus].toLowerCase()}`);
     } catch {
-      toast.error("Erreur lors de la mise à jour du statut");
+      toast.error("Erreur lors de la mise à jour");
     } finally {
       setUpdating(false);
     }
   }
 
+  async function handleCreate() {
+    if (!selectedEnvId || !newTitle.trim()) return;
+    setCreating(true);
+    try {
+      const c = await createContest(selectedEnvId, newTitle.trim());
+      setContest(c);
+      setParticipations([]);
+      setShowCreate(false);
+      setNewTitle('');
+      toast.success("Concours créé");
+    } catch {
+      toast.error("Erreur lors de la création");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   const selectedEnv = environments.find(e => e.id === selectedEnvId);
-  const currentStatus: ContestStatus = (contest?.status as ContestStatus) ?? mockCurrentContest.status;
+  const status = contest?.status as ContestStatus | undefined;
 
   return (
     <AdminLayout title="Concours">
-      <div className="max-w-3xl space-y-8">
+      <div className="max-w-4xl space-y-6">
         {!configured && <SupabaseBanner />}
 
         {/* Env selector */}
@@ -91,72 +166,147 @@ export default function ConcoursPage() {
         )}
 
         {loading ? (
-          <Skeleton className="h-64 rounded-xl" />
+          <div className="space-y-4">
+            <Skeleton className="h-40 rounded-xl" />
+            <Skeleton className="h-64 rounded-xl" />
+          </div>
         ) : (
           <>
-            {/* Contest info */}
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
-              <Card className="glass p-6">
-                <div className="flex items-center justify-between mb-4">
+            {/* No active contest */}
+            {!contest && configured && (
+              <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                <Card className="glass p-8 text-center space-y-4">
+                  <Trophy className="w-10 h-10 text-text-muted mx-auto" />
                   <div>
-                    <div className="flex items-center gap-3 mb-1">
-                      <h2 className="text-lg font-semibold text-text-primary">
-                        {contest?.title ?? mockCurrentContest.id}
-                      </h2>
-                      <Badge variant={statusVariants[currentStatus]}>{statusLabels[currentStatus]}</Badge>
-                      {selectedEnv && <EnvironmentBadge env={selectedEnv.name as EnvironmentName} />}
-                    </div>
-                    {!contest && configured && (
-                      <p className="text-sm text-amber-400 flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" /> Aucun concours actif dans cet environnement
-                      </p>
-                    )}
+                    <h3 className="font-semibold text-text-primary mb-1">Aucun concours actif</h3>
+                    <p className="text-sm text-text-muted">Créez un concours pour que le bot commence à accepter des participations.</p>
                   </div>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  {[
-                    { label: "Participations", value: contest?.total_participations ?? mockCurrentContest.participations },
-                    { label: "Votes", value: contest?.total_votes ?? mockCurrentContest.totalVotes },
-                    { label: "Début", value: contest?.started_at ? new Date(contest.started_at).toLocaleDateString('fr-FR') : mockCurrentContest.startDate },
-                    { label: "Fin prévue", value: contest?.ends_at ? new Date(contest.ends_at).toLocaleDateString('fr-FR') : mockCurrentContest.endDate },
-                  ].map(({ label, value }) => (
-                    <div key={label} className="bg-surface-2 rounded-xl p-4 border border-border-subtle">
-                      <p className="text-xs text-text-muted mb-1">{label}</p>
-                      <p className="font-semibold text-text-primary">{value}</p>
+                  {!showCreate ? (
+                    <Button onClick={() => setShowCreate(true)} className="gap-2">
+                      <Plus className="w-4 h-4" /> Créer un concours
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2 max-w-sm mx-auto">
+                      <Input
+                        value={newTitle}
+                        onChange={e => setNewTitle(e.target.value)}
+                        placeholder="Titre du concours..."
+                        onKeyDown={e => e.key === 'Enter' && handleCreate()}
+                        autoFocus
+                      />
+                      <Button onClick={handleCreate} disabled={creating || !newTitle.trim()} className="gap-1.5">
+                        {creating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                        Créer
+                      </Button>
                     </div>
-                  ))}
-                </div>
-              </Card>
-            </motion.div>
+                  )}
+                </Card>
+              </motion.div>
+            )}
 
-            {/* Actions */}
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-              <Card className="glass p-6">
-                <h3 className="font-semibold text-text-primary mb-2">Actions</h3>
-                <p className="text-xs text-amber-400 mb-5 flex items-center gap-1.5">
-                  <AlertCircle className="w-3 h-3" />
-                  Ces actions modifient le statut en base. Le bot Discord n&apos;est pas encore connecté (Phase 3).
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <Button variant="outline" className="gap-2 justify-start" disabled={updating} onClick={() => handleStatusChange('open')}>
-                    {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 text-emerald-400" />}
-                    Ouvrir le concours
-                  </Button>
-                  <Button variant="outline" className="gap-2 justify-start" disabled={updating} onClick={() => handleStatusChange('paused')}>
-                    <Pause className="w-4 h-4 text-amber-400" /> Suspendre
-                  </Button>
-                  <Button variant="outline" className="gap-2 justify-start" disabled={updating} onClick={() => handleStatusChange('open')}>
-                    <Play className="w-4 h-4 text-cyan" /> Réouvrir
-                  </Button>
-                  <Button variant="destructive" className="gap-2 justify-start" disabled={updating} onClick={() => handleStatusChange('closed')}>
-                    <StopCircle className="w-4 h-4" /> Fermer
-                  </Button>
-                  <Button variant="ghost" className="gap-2 justify-start sm:col-span-2" disabled={updating} onClick={() => handleStatusChange('archived')}>
-                    <Archive className="w-4 h-4" /> Archiver
-                  </Button>
-                </div>
-              </Card>
-            </motion.div>
+            {/* Active contest */}
+            {contest && (
+              <>
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+                  <Card className="glass p-6">
+                    <div className="flex items-start justify-between gap-4 mb-5">
+                      <div>
+                        <div className="flex items-center gap-3 flex-wrap mb-1">
+                          <h2 className="text-lg font-semibold text-text-primary">{contest.title ?? "Concours sans titre"}</h2>
+                          {status && <Badge variant={STATUS_VARIANTS[status]}>{STATUS_LABELS[status]}</Badge>}
+                          {selectedEnv && <EnvironmentBadge env={selectedEnv.name as EnvironmentName} />}
+                        </div>
+                        {contest.started_at && (
+                          <p className="text-xs text-text-muted">
+                            Ouvert le {new Date(contest.started_at).toLocaleString("fr-FR")}
+                            {contest.ends_at && ` · Ferme le ${new Date(contest.ends_at).toLocaleString("fr-FR")}`}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                      {[
+                        { label: "Participations", value: contest.total_participations },
+                        { label: "Votes", value: contest.total_votes },
+                        { label: "En attente", value: participations.length },
+                        { label: "Top vote", value: participations[0]?.vote_count ?? 0 },
+                      ].map(({ label, value }) => (
+                        <div key={label} className="bg-surface-2 rounded-xl p-3 border border-border-subtle text-center">
+                          <p className="text-2xl font-bold text-text-primary">{value}</p>
+                          <p className="text-xs text-text-muted">{label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="flex flex-wrap gap-2">
+                      {status === 'draft' && (
+                        <Button onClick={() => handleStatusChange('open')} disabled={updating} className="gap-2">
+                          {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+                          Ouvrir le concours
+                        </Button>
+                      )}
+                      {status === 'open' && (
+                        <>
+                          <Button variant="outline" onClick={() => handleStatusChange('paused')} disabled={updating} className="gap-2">
+                            <Pause className="w-4 h-4 text-amber-400" /> Suspendre
+                          </Button>
+                          <Button variant="destructive" onClick={() => handleStatusChange('closed')} disabled={updating} className="gap-2">
+                            {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <StopCircle className="w-4 h-4" />}
+                            Fermer et désigner les gagnants
+                          </Button>
+                        </>
+                      )}
+                      {status === 'paused' && (
+                        <>
+                          <Button onClick={() => handleStatusChange('open')} disabled={updating} className="gap-2">
+                            <Play className="w-4 h-4" /> Réouvrir
+                          </Button>
+                          <Button variant="destructive" onClick={() => handleStatusChange('closed')} disabled={updating} className="gap-2">
+                            <StopCircle className="w-4 h-4" /> Fermer
+                          </Button>
+                        </>
+                      )}
+                      {status === 'closed' && (
+                        <Button variant="ghost" onClick={() => handleStatusChange('archived')} disabled={updating} className="gap-2">
+                          <Archive className="w-4 h-4" /> Archiver
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                </motion.div>
+
+                {/* Participations */}
+                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+                  <Card className="glass p-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-xs font-semibold text-cyan uppercase tracking-widest">
+                        Participations ({participations.length})
+                      </h3>
+                      <span className="text-xs text-text-muted flex items-center gap-1">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-400 animate-pulse" />
+                        Temps réel
+                      </span>
+                    </div>
+
+                    {participations.length === 0 ? (
+                      <div className="text-center py-8">
+                        <ImageIcon className="w-8 h-8 text-text-muted mx-auto mb-2" />
+                        <p className="text-sm text-text-muted">Aucune participation pour l'instant</p>
+                        <p className="text-xs text-text-muted mt-1">Les screenshots postés par le bot apparaîtront ici automatiquement</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {participations.map((p, i) => (
+                          <ParticipationCard key={p.id} p={p} rank={i + 1} />
+                        ))}
+                      </div>
+                    )}
+                  </Card>
+                </motion.div>
+              </>
+            )}
           </>
         )}
       </div>
