@@ -15,7 +15,7 @@ import { signIn } from "@/features/auth/api";
 export default function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams.get("redirect") ?? "/admin";
+  const redirect = searchParams.get("redirect") ?? "/gestion";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -107,12 +107,6 @@ export default function LoginForm() {
             </Button>
           </form>
 
-          <div className="text-center text-sm text-text-muted">
-            Pas encore de compte ?{" "}
-            <Link href="/auth/register" className="text-cyan hover:text-cyan-light transition-colors">
-              Créer un compte
-            </Link>
-          </div>
         </div>
       </motion.div>
     </div>

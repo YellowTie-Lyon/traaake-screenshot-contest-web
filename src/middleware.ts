@@ -25,7 +25,7 @@ export async function middleware(request: NextRequest) {
 
   const { pathname } = request.nextUrl
 
-  if (pathname.startsWith('/admin') && !user) {
+  if (pathname.startsWith('/gestion') && !user) {
     const loginUrl = request.nextUrl.clone()
     loginUrl.pathname = '/auth/login'
     loginUrl.searchParams.set('redirect', pathname)
@@ -34,7 +34,7 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith('/auth/') && !pathname.startsWith('/auth/callback') && user) {
     const adminUrl = request.nextUrl.clone()
-    adminUrl.pathname = '/admin'
+    adminUrl.pathname = '/gestion'
     return NextResponse.redirect(adminUrl)
   }
 
@@ -42,5 +42,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*', '/auth/:path*'],
+  matcher: ['/gestion/:path*', '/auth/:path*'],
 }
