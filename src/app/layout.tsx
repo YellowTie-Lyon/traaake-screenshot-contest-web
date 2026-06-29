@@ -3,8 +3,8 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TraaaKe Concours Screenshot",
-  description: "Classement et gagnants du concours screenshot hebdomadaire TraaaKe MSFS",
+  title: "TraKr Concours Screenshot",
+  description: "Classement et gagnants du concours screenshot hebdomadaire TraKr MSFS",
 };
 
 export default function RootLayout({

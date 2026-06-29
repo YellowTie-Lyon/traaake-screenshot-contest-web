@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import { Calendar, ThumbsUp, Crown, Trophy } from "lucide-react";
 import { Header } from "@/components/layout/Header";
+import { Footer } from "@/components/layout/Footer";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -225,6 +226,7 @@ export default function GagnantsPage() {
           </>
         )}
       </main>
+      <Footer />
     </div>
   );
 }
