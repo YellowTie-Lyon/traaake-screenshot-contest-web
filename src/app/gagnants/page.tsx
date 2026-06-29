@@ -102,8 +102,8 @@ export default function GagnantsPage() {
                   </div>
                 </div>
                 <div className="p-8 flex flex-col justify-center">
-                  <p className="text-text-muted text-sm mb-2">{formatPeriod(latest.started_at, latest.closed_at)}</p>
-                  <h2 className="text-2xl font-bold text-text-primary mb-4">🏆</h2>
+                  <div className="text-5xl mb-3">🏆</div>
+                  <p className="text-text-muted text-sm mb-6">{formatPeriod(latest.started_at, latest.closed_at)}</p>
                   <div className="flex items-center gap-3 mb-6">
                     <Avatar className="h-10 w-10 border-2 border-cyan/30">
                       <AvatarImage src={latest.winner_avatar ?? undefined} alt={latest.winner_name ?? ''} />

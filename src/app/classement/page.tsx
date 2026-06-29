@@ -54,11 +54,18 @@ export default function ClassementPage() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Realtime: refresh contest stats when total_participations or total_votes change
+  // Realtime: refresh contest stats + leaderboard on any relevant change
   useEffect(() => {
     if (!activeContest?.id || !supabase) return;
+
+    const refreshLeaderboard = () =>
+      getActiveEnvironment().then(env => {
+        if (env) getActiveContestLeaderboard(env.id).then(setContestEntries);
+      });
+
     const channel = supabase
-      .channel(`contest-stats-${activeContest.id}`)
+      .channel(`contest-live-${activeContest.id}`)
+      // Contest row update (total_participations, total_votes, status)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -73,12 +80,24 @@ export default function ClassementPage() {
           total_votes: updated.total_votes ?? prev.total_votes,
           status: updated.status ?? prev.status,
         } : null);
-        // Also refresh contest leaderboard
-        getActiveEnvironment().then(env => {
-          if (env) getActiveContestLeaderboard(env.id).then(setContestEntries);
-        });
+        refreshLeaderboard();
       })
+      // Participation vote_count update → re-sort leaderboard
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'participations',
+        filter: `contest_id=eq.${activeContest.id}`,
+      }, () => { refreshLeaderboard(); })
+      // New participation added
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'participations',
+        filter: `contest_id=eq.${activeContest.id}`,
+      }, () => { refreshLeaderboard(); })
       .subscribe();
+
     return () => { supabase?.removeChannel(channel); };
   }, [activeContest?.id]);
 
