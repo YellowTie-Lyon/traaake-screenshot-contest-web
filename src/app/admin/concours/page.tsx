@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Play, Pause, StopCircle, Archive, Loader2, Plus, Trophy, Image as ImageIcon, Heart, Clock } from "lucide-react";
+import { Play, Pause, StopCircle, Archive, Loader2, Plus, Trophy, Image as ImageIcon, Heart, Clock, RotateCcw, X } from "lucide-react";
 import Image from "next/image";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card } from "@/components/ui/card";
@@ -62,6 +62,60 @@ function ParticipationCard({ p, rank }: { p: Participation; rank: number }) {
   );
 }
 
+function ResetModal({ onConfirm, onClose, resetting }: { onConfirm: () => void; onClose: () => void; resetting: boolean }) {
+  const [value, setValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => { inputRef.current?.focus(); }, []);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
+        className="relative z-10 w-full max-w-md"
+      >
+        <Card className="glass p-6 space-y-5 border border-red-500/30">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2 className="text-base font-semibold text-red-400 flex items-center gap-2">
+                <RotateCcw className="w-4 h-4" /> Reset le classement
+              </h2>
+              <p className="text-xs text-text-muted mt-1">
+                Cette action va supprimer <strong className="text-text-primary">toutes les participations, tous les participants et tous les points</strong> de cet environnement, et fermer le concours actif.
+              </p>
+            </div>
+            <button onClick={onClose} className="text-text-muted hover:text-text-primary"><X className="w-4 h-4" /></button>
+          </div>
+          <div className="space-y-2">
+            <p className="text-xs text-text-muted">Tapez <span className="font-mono font-bold text-red-400">CONFIRMER</span> pour valider :</p>
+            <Input
+              ref={inputRef}
+              value={value}
+              onChange={e => setValue(e.target.value)}
+              placeholder="CONFIRMER"
+              className="border-red-500/30 focus:border-red-500/60"
+              onKeyDown={e => e.key === 'Enter' && value === 'CONFIRMER' && onConfirm()}
+            />
+          </div>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" onClick={onClose} disabled={resetting}>Annuler</Button>
+            <Button
+              variant="destructive"
+              onClick={onConfirm}
+              disabled={value !== 'CONFIRMER' || resetting}
+              className="gap-2"
+            >
+              {resetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <RotateCcw className="w-4 h-4" />}
+              Réinitialiser
+            </Button>
+          </div>
+        </Card>
+      </motion.div>
+    </div>
+  );
+}
+
 export default function ConcoursPage() {
   const configured = isSupabaseConfigured();
   const [environments, setEnvironments] = useState<DbEnvironment[]>([]);
@@ -73,6 +127,8 @@ export default function ConcoursPage() {
   const [opening, setOpening] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [showOpenForm, setShowOpenForm] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     if (!configured) { setLoading(false); return; }
@@ -146,17 +202,47 @@ export default function ConcoursPage() {
     }
   }
 
+  async function handleReset() {
+    if (!selectedEnvId) return;
+    setResetting(true);
+    try {
+      const res = await fetch('/api/contests/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ environmentId: selectedEnvId }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? 'Erreur serveur');
+      setContest(null);
+      setParticipations([]);
+      setShowResetModal(false);
+      toast.success('Classement remis à zéro ✅');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erreur lors du reset');
+    } finally {
+      setResetting(false);
+    }
+  }
+
   const selectedEnv = environments.find(e => e.id === selectedEnvId);
   const status = contest?.status as ContestStatus | undefined;
 
   return (
     <AdminLayout title="Concours">
+      <AnimatePresence>
+        {showResetModal && (
+          <ResetModal
+            onConfirm={handleReset}
+            onClose={() => setShowResetModal(false)}
+            resetting={resetting}
+          />
+        )}
+      </AnimatePresence>
       <div className="max-w-4xl space-y-6">
         {!configured && <SupabaseBanner />}
 
-        {/* Env selector */}
+        {/* Env selector + reset */}
         {configured && environments.length > 0 && (
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="text-sm text-text-muted">Environnement :</span>
             {environments.map(env => (
               <button key={env.id} onClick={() => setSelectedEnvId(env.id)}
@@ -167,6 +253,18 @@ export default function ConcoursPage() {
                 {env.label}
               </button>
             ))}
+            <div className="ml-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowResetModal(true)}
+                disabled={!selectedEnvId}
+                className="gap-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 hover:border-red-500/40"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset classement
+              </Button>
+            </div>
           </div>
         )}
 
