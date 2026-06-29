@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Star, Award, TrendingUp, Users, Zap, Heart } from "lucide-react";
 import Image from "next/image";
@@ -20,6 +20,7 @@ import {
   type CurrentContestEntry,
 } from "@/features/public/api";
 import { isSupabaseConfigured } from "@/lib/supabase/isConfigured";
+import { supabase } from "@/lib/supabase/client";
 
 const rankColors: Record<number, string> = { 1: "#f59e0b", 2: "#9ca3af", 3: "#b45309" };
 const rankEmojis: Record<number, string> = { 1: "🥇", 2: "🥈", 3: "🥉" };
@@ -33,25 +34,53 @@ export default function ClassementPage() {
   const [seasonEntries, setSeasonEntries] = useState<LeaderboardEntry[]>([]);
   const [contestEntries, setContestEntries] = useState<CurrentContestEntry[]>([]);
   const [seasonName, setSeasonName] = useState<string | null>(null);
-  const [activeContest, setActiveContest] = useState<{ total_participations: number; total_votes: number; title: string | null; status: string; ends_at: string | null } | null>(null);
+  const [activeContest, setActiveContest] = useState<{ id: string; total_participations: number; total_votes: number; title: string | null; status: string; ends_at: string | null } | null>(null);
   const [loading, setLoading] = useState(configured);
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
     if (!configured) { setLoading(false); return; }
-    Promise.all([getActiveSeason(), getActiveEnvironment()])
-      .then(async ([season, env]) => {
-        setSeasonName(season?.name ?? null);
-        const [lb, contest, contestLb] = await Promise.all([
-          getSeasonLeaderboard(season?.id),
-          env ? getActiveContestPublic(env.id) : Promise.resolve(null),
-          env ? getActiveContestLeaderboard(env.id) : Promise.resolve([]),
-        ]);
-        setSeasonEntries(lb);
-        setActiveContest(contest);
-        setContestEntries(contestLb);
-      })
-      .finally(() => setLoading(false));
+    const [season, env] = await Promise.all([getActiveSeason(), getActiveEnvironment()]);
+    setSeasonName(season?.name ?? null);
+    const [lb, contest, contestLb] = await Promise.all([
+      getSeasonLeaderboard(season?.id),
+      env ? getActiveContestPublic(env.id) : Promise.resolve(null),
+      env ? getActiveContestLeaderboard(env.id) : Promise.resolve([]),
+    ]);
+    setSeasonEntries(lb);
+    setActiveContest(contest);
+    setContestEntries(contestLb);
+    setLoading(false);
   }, [configured]);
+
+  useEffect(() => { loadData(); }, [loadData]);
+
+  // Realtime: refresh contest stats when total_participations or total_votes change
+  useEffect(() => {
+    if (!activeContest?.id || !supabase) return;
+    const channel = supabase
+      .channel(`contest-stats-${activeContest.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'contests',
+        filter: `id=eq.${activeContest.id}`,
+      }, payload => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const updated = payload.new as any;
+        setActiveContest(prev => prev ? {
+          ...prev,
+          total_participations: updated.total_participations ?? prev.total_participations,
+          total_votes: updated.total_votes ?? prev.total_votes,
+          status: updated.status ?? prev.status,
+        } : null);
+        // Also refresh contest leaderboard
+        getActiveEnvironment().then(env => {
+          if (env) getActiveContestLeaderboard(env.id).then(setContestEntries);
+        });
+      })
+      .subscribe();
+    return () => { supabase?.removeChannel(channel); };
+  }, [activeContest?.id]);
 
   const mockEntries: LeaderboardEntry[] = mockMembers.map(m => ({
     rank: m.rank, discord_user_id: m.id, discord_username: m.username,
@@ -109,8 +138,8 @@ export default function ClassementPage() {
                 {!hasActiveContest
                   ? 'Aucun concours en cours'
                   : activeContest!.status === 'tiebreak'
-                    ? `⚡ Égalité — prolongation en cours${activeContest!.title ? ` · ${activeContest!.title}` : ''}`
-                    : activeContest!.title ?? 'Concours en cours'
+                    ? '⚡ Égalité — prolongation en cours'
+                    : 'Concours ouvert'
                 }
               </span>
             </div>
