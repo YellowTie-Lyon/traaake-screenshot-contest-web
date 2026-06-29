@@ -5,10 +5,10 @@ export async function getEnvironments(): Promise<DbEnvironment[]> {
   if (!supabase) return []
   const { data, error } = await supabase
     .from('environments')
-    .select('*')
+    .select('id, name, label, is_active, discord_app_id, created_at, updated_at')
     .order('name')
   if (error) throw error
-  return data ?? []
+  return (data ?? []) as DbEnvironment[]
 }
 
 export async function getEnvironmentWithSettings(envName: string): Promise<{
@@ -18,7 +18,7 @@ export async function getEnvironmentWithSettings(envName: string): Promise<{
   if (!supabase) return null
   const { data: env, error: envError } = await supabase
     .from('environments')
-    .select('*')
+    .select('id, name, label, is_active, discord_app_id, created_at, updated_at')
     .eq('name', envName)
     .single()
   if (envError || !env) return null
@@ -29,12 +29,30 @@ export async function getEnvironmentWithSettings(envName: string): Promise<{
     .eq('environment_id', env.id)
     .single()
 
-  return { environment: env, settings: settings ?? null }
+  return { environment: env as DbEnvironment, settings: settings ?? null }
 }
 
+// Uses server-side API route with admin client — never sends discord_bot_token to browser
 export async function setActiveEnvironment(id: string): Promise<void> {
-  if (!supabase) throw new Error('Supabase not configured')
-  await supabase.from('environments').update({ is_active: false }).neq('id', id)
-  const { error } = await supabase.from('environments').update({ is_active: true }).eq('id', id)
-  if (error) throw error
+  const res = await fetch('/api/environments/activate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id }),
+  })
+  if (!res.ok) {
+    const { error } = await res.json()
+    throw new Error(error ?? 'Activation failed')
+  }
+}
+
+export async function saveBotCredentials(id: string, discord_bot_token: string, discord_app_id: string): Promise<void> {
+  const res = await fetch('/api/environments/bot-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ id, discord_bot_token, discord_app_id }),
+  })
+  if (!res.ok) {
+    const { error } = await res.json()
+    throw new Error(error ?? 'Save failed')
+  }
 }
