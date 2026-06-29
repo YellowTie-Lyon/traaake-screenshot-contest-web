@@ -33,7 +33,7 @@ export default function ClassementPage() {
   const [seasonEntries, setSeasonEntries] = useState<LeaderboardEntry[]>([]);
   const [contestEntries, setContestEntries] = useState<CurrentContestEntry[]>([]);
   const [seasonName, setSeasonName] = useState<string | null>(null);
-  const [activeContest, setActiveContest] = useState<{ total_participations: number; total_votes: number; title: string | null; status: string } | null>(null);
+  const [activeContest, setActiveContest] = useState<{ total_participations: number; total_votes: number; title: string | null; status: string; ends_at: string | null } | null>(null);
   const [loading, setLoading] = useState(configured);
 
   useEffect(() => {
@@ -101,13 +101,24 @@ export default function ClassementPage() {
         </motion.div>
 
         {/* Contest banner */}
-        {hasActiveContest && (
-          <motion.div {...fadeUp} transition={{ delay: 0.15 }} className="mb-8 p-4 rounded-xl border border-green-700/30 bg-green-900/10 flex items-center gap-3">
-            <span className="h-2 w-2 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
-            <span className="text-sm text-green-300 font-medium">
-              {activeContest.status === 'tiebreak' ? '⚡ Égalité — prolongation en cours' : 'Concours en cours'}
-              {activeContest.title ? ` · ${activeContest.title}` : ''}
-            </span>
+        {configured && !loading && (
+          <motion.div {...fadeUp} transition={{ delay: 0.15 }} className={`mb-8 p-4 rounded-xl border flex items-center justify-between gap-4 ${hasActiveContest ? 'border-green-700/30 bg-green-900/10' : 'border-border-subtle bg-surface-2/50'}`}>
+            <div className="flex items-center gap-3">
+              <span className={`h-2 w-2 rounded-full flex-shrink-0 ${hasActiveContest ? 'bg-green-400 animate-pulse' : 'bg-text-muted'}`} />
+              <span className={`text-sm font-medium ${hasActiveContest ? 'text-green-300' : 'text-text-muted'}`}>
+                {!hasActiveContest
+                  ? 'Aucun concours en cours'
+                  : activeContest!.status === 'tiebreak'
+                    ? `⚡ Égalité — prolongation en cours${activeContest!.title ? ` · ${activeContest!.title}` : ''}`
+                    : activeContest!.title ?? 'Concours en cours'
+                }
+              </span>
+            </div>
+            {hasActiveContest && activeContest!.ends_at && (
+              <span className="text-xs text-text-muted flex-shrink-0">
+                Fermeture le {new Date(activeContest!.ends_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à {new Date(activeContest!.ends_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+            )}
           </motion.div>
         )}
 
