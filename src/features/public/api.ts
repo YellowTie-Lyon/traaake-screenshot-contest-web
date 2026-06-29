@@ -116,19 +116,26 @@ export async function getSeasonLeaderboard(seasonId?: string): Promise<Leaderboa
     }
   }
 
-  // Get wins count from contests where this participant won
+  // Get wins: fetch winner participation ids, then look up their participant_id
   const { data: closedContests } = await supabase
     .from('contests')
-    .select('winner_participation_id, participations!inner(participant_id)')
+    .select('winner_participation_id')
     .eq('season_id', sid)
     .eq('status', 'closed')
     .not('winner_participation_id', 'is', null)
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const c of (closedContests ?? []) as any[]) {
-    const winnerParticipantId = c.participations?.[0]?.participant_id
-    if (winnerParticipantId && map.has(winnerParticipantId)) {
-      map.get(winnerParticipantId)!.wins++
+  const winnerPartIds = (closedContests ?? [])
+    .map((c: { winner_participation_id: string }) => c.winner_participation_id)
+    .filter(Boolean)
+
+  if (winnerPartIds.length > 0) {
+    const { data: winnerParts } = await supabase
+      .from('participations')
+      .select('participant_id')
+      .in('id', winnerPartIds)
+    for (const row of winnerParts ?? []) {
+      const entry = map.get(row.participant_id)
+      if (entry) entry.wins++
     }
   }
 
