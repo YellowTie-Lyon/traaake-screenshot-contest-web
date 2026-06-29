@@ -18,6 +18,13 @@ function formatDate(iso: string | null) {
   return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+function formatPeriod(start: string | null, end: string | null) {
+  if (!start && !end) return '';
+  if (!start) return formatDate(end);
+  if (!end) return `Depuis le ${formatDate(start)}`;
+  return `Du ${formatDate(start)} au ${formatDate(end)}`;
+}
+
 export default function GagnantsPage() {
   const configured = isSupabaseConfigured();
   const [winners, setWinners] = useState<WinnerEntry[]>([]);
@@ -95,8 +102,8 @@ export default function GagnantsPage() {
                   </div>
                 </div>
                 <div className="p-8 flex flex-col justify-center">
-                  <p className="text-text-muted text-sm mb-2">{latest.contest_title ?? 'Concours'} · {formatDate(latest.closed_at)}</p>
-                  <h2 className="text-2xl font-bold text-text-primary mb-4">🏆 {latest.winner_name}</h2>
+                  <p className="text-text-muted text-sm mb-2">{formatPeriod(latest.started_at, latest.closed_at)}</p>
+                  <h2 className="text-2xl font-bold text-text-primary mb-4">🏆</h2>
                   <div className="flex items-center gap-3 mb-6">
                     <Avatar className="h-10 w-10 border-2 border-cyan/30">
                       <AvatarImage src={latest.winner_avatar ?? undefined} alt={latest.winner_name ?? ''} />
@@ -104,12 +111,11 @@ export default function GagnantsPage() {
                     </Avatar>
                     <div>
                       <p className="font-medium text-text-primary">{latest.winner_name}</p>
-                      <p className="text-sm text-text-muted">Photographe du concours</p>
+                      <p className="text-sm text-text-muted">Photographe de la semaine</p>
                     </div>
                   </div>
                   <div className="flex gap-4 text-sm">
                     <div className="flex items-center gap-1.5 text-text-secondary"><ThumbsUp className="h-4 w-4 text-cyan" />{latest.vote_count} votes</div>
-                    <div className="flex items-center gap-1.5 text-text-secondary"><Calendar className="h-4 w-4 text-cyan" />{formatDate(latest.closed_at)}</div>
                   </div>
                 </div>
               </div>
@@ -168,9 +174,6 @@ export default function GagnantsPage() {
                           <div className="flex items-center justify-center h-full"><Trophy className="w-8 h-8 text-text-muted" /></div>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-                        <div className="absolute bottom-3 left-3">
-                          <Badge variant="default" className="text-xs">{winner.contest_title ?? 'Concours'}</Badge>
-                        </div>
                       </div>
                       <CardContent className="p-4">
                         <div className="flex items-center gap-2">
@@ -180,7 +183,7 @@ export default function GagnantsPage() {
                           </Avatar>
                           <div>
                             <p className="text-sm font-medium text-text-primary">{winner.winner_name}</p>
-                            <p className="text-xs text-text-muted">{formatDate(winner.closed_at)}</p>
+                            <p className="text-xs text-text-muted">{formatPeriod(winner.started_at, winner.closed_at)}</p>
                           </div>
                           <div className="ml-auto flex items-center gap-1 text-xs text-text-secondary">
                             <ThumbsUp className="h-3 w-3 text-cyan" />{winner.vote_count}
