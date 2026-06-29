@@ -1,5 +1,5 @@
 export type EnvironmentName = 'test' | 'production'
-export type ContestStatus = 'active' | 'tiebreak' | 'closed'
+export type ContestStatus = 'active' | 'tiebreak' | 'suspended' | 'closed' | 'archived'
 export type UserRole = 'owner' | 'administrator' | 'moderator' | 'viewer'
 
 export interface DbEnvironment {
