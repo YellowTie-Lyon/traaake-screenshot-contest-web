@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard, Trophy, Settings, History, ExternalLink,
-  Server, Bot, LogOut, ChevronDown, Users,
+  Bot, LogOut, ChevronDown, Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/features/auth/hooks";
@@ -16,8 +16,7 @@ import type { TabSlug } from "@/lib/supabase/types";
 const allNavItems: { href: string; label: string; icon: React.ElementType; exact?: boolean; slug: TabSlug }[] = [
   { href: "/gestion", label: "Dashboard", icon: LayoutDashboard, exact: true, slug: "dashboard" },
   { href: "/gestion/concours", label: "Concours", icon: Trophy, slug: "concours" },
-  { href: "/gestion/discord", label: "Discord", icon: Bot, slug: "discord" },
-  { href: "/gestion/environnements", label: "Environnements", icon: Server, slug: "environnements" },
+  { href: "/gestion/discord", label: "Intégration Discord", icon: Bot, slug: "discord" },
   { href: "/gestion/reglages", label: "Réglages", icon: Settings, slug: "reglages" },
   { href: "/gestion/historique", label: "Historique", icon: History, slug: "historique" },
 ];

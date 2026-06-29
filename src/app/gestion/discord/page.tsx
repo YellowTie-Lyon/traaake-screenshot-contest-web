@@ -33,7 +33,7 @@ import {
 } from "@/features/discord/api";
 import { getEnvironments } from "@/features/environments/api";
 import { supabase } from "@/lib/supabase/client";
-import type { DiscordGuild, DiscordChannel, DiscordRole, DbDiscordGuildConfig, DbEnvironment } from "@/lib/supabase/types";
+import type { DiscordGuild, DiscordChannel, DiscordRole, DbDiscordGuildConfig } from "@/lib/supabase/types";
 
 function GuildIconFallback({ name }: { name: string }) {
   return (
@@ -76,12 +76,12 @@ function DiscordSelect({
 
 interface GuildCardProps {
   guild: DiscordGuild;
-  environments: DbEnvironment[];
+  activeEnvId: string;
   existingConfigs: DbDiscordGuildConfig[];
   onSaved: () => void;
 }
 
-function GuildCard({ guild, environments, existingConfigs, onSaved }: GuildCardProps) {
+function GuildCard({ guild, activeEnvId, existingConfigs, onSaved }: GuildCardProps) {
   const [botPresent, setBotPresent] = useState<boolean | null>(null);
   const [checkingBot, setCheckingBot] = useState(false);
   const [channels, setChannels] = useState<DiscordChannel[]>([]);
@@ -90,7 +90,6 @@ function GuildCard({ guild, environments, existingConfigs, onSaved }: GuildCardP
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState(false);
 
-  const [selectedEnvId, setSelectedEnvId] = useState(existingConfigs[0]?.environment_id ?? environments[0]?.id ?? "");
   const [selectedChannel, setSelectedChannel] = useState(existingConfigs[0]?.contest_channel_id ?? "");
   const [selectedAdminRole, setSelectedAdminRole] = useState(existingConfigs[0]?.admin_role_id ?? "");
   const [selectedPhotographerRole, setSelectedPhotographerRole] = useState(existingConfigs[0]?.photographer_role_id ?? "");
@@ -136,14 +135,14 @@ function GuildCard({ guild, environments, existingConfigs, onSaved }: GuildCardP
   }
 
   async function handleSave() {
-    if (!selectedEnvId) { toast.error("Sélectionnez un environnement"); return; }
+    if (!activeEnvId) { toast.error("Aucun environnement actif"); return; }
     setSaving(true);
     try {
       const channelName = channels.find(c => c.id === selectedChannel)?.name;
       const adminRoleName = roles.find(r => r.id === selectedAdminRole)?.name;
       const photographerRoleName = roles.find(r => r.id === selectedPhotographerRole)?.name;
 
-      await upsertGuildConfig(selectedEnvId, {
+      await upsertGuildConfig(activeEnvId, {
         guild_id: guild.id,
         guild_name: guild.name,
         guild_icon_url: iconUrl,
@@ -255,16 +254,6 @@ function GuildCard({ guild, environments, existingConfigs, onSaved }: GuildCardP
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-text-muted uppercase tracking-wider">Environnement</label>
-                  <DiscordSelect
-                    value={selectedEnvId}
-                    onChange={setSelectedEnvId}
-                    options={environments.map(e => ({ id: e.id, name: e.label }))}
-                    placeholder="Sélectionner..."
-                  />
-                </div>
-
-                <div className="space-y-1.5">
                   <label className="text-xs font-medium text-text-muted uppercase tracking-wider flex items-center gap-1">
                     <Hash className="w-3 h-3" /> Salon concours
                   </label>
@@ -324,7 +313,7 @@ function GuildCard({ guild, environments, existingConfigs, onSaved }: GuildCardP
 function DiscordPageContent() {
   const searchParams = useSearchParams();
   const { user, profile, loading: userLoading } = useUser();
-  const [environments, setEnvironments] = useState<DbEnvironment[]>([]);
+  const [activeEnvId, setActiveEnvId] = useState<string>('');
   const [guildConfigs, setGuildConfigs] = useState<DbDiscordGuildConfig[]>([]);
   const [syncing, setSyncing] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
@@ -340,21 +329,21 @@ function DiscordPageContent() {
   }, [searchParams]);
 
   useEffect(() => {
-    getEnvironments().then(setEnvironments);
+    getEnvironments().then(envs => {
+      const active = envs.find(e => e.is_active) ?? envs[0];
+      if (active) setActiveEnvId(active.id);
+    });
   }, []);
 
   const loadGuildConfigs = useCallback(async () => {
-    const configs: DbDiscordGuildConfig[] = [];
-    for (const env of environments) {
-      const envConfigs = await import("@/features/discord/api").then(m => m.getGuildConfigs(env.id));
-      configs.push(...envConfigs);
-    }
+    if (!activeEnvId) return;
+    const configs = await getGuildConfigs(activeEnvId);
     setGuildConfigs(configs);
-  }, [environments]);
+  }, [activeEnvId]);
 
   useEffect(() => {
-    if (environments.length > 0) loadGuildConfigs();
-  }, [environments, loadGuildConfigs]);
+    if (activeEnvId) loadGuildConfigs();
+  }, [activeEnvId, loadGuildConfigs]);
 
   async function handleSync() {
     setSyncing(true);
@@ -394,7 +383,7 @@ function DiscordPageContent() {
   }
 
   return (
-    <AdminLayout title="Discord">
+    <AdminLayout title="Intégration Discord">
       <div className="max-w-4xl space-y-8">
 
         {/* Connection status */}
@@ -526,7 +515,7 @@ function DiscordPageContent() {
                   >
                     <GuildCard
                       guild={guild}
-                      environments={environments}
+                      activeEnvId={activeEnvId}
                       existingConfigs={guildConfigs.filter(c => c.guild_id === guild.id)}
                       onSaved={loadGuildConfigs}
                     />
