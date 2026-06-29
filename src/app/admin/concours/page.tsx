@@ -20,10 +20,10 @@ import { supabase } from "@/lib/supabase/client";
 import type { DbContest, DbEnvironment, ContestStatus, EnvironmentName } from "@/lib/supabase/types";
 
 const STATUS_VARIANTS: Record<ContestStatus, "open" | "paused" | "closed" | "draft" | "archived"> = {
-  open: "open", paused: "paused", closed: "closed", draft: "draft", archived: "archived",
+  active: "open", tiebreak: "paused", closed: "closed",
 };
 const STATUS_LABELS: Record<ContestStatus, string> = {
-  open: "Ouvert", paused: "Suspendu", closed: "Fermé", draft: "Brouillon", archived: "Archivé",
+  active: "Ouvert", tiebreak: "Égalité — prolongation", closed: "Fermé",
 };
 
 function ParticipationCard({ p, rank }: { p: Participation; rank: number }) {
@@ -241,37 +241,25 @@ export default function ConcoursPage() {
 
                     {/* Action buttons */}
                     <div className="flex flex-wrap gap-2">
-                      {status === 'draft' && (
-                        <Button onClick={() => handleStatusChange('open')} disabled={updating} className="gap-2">
-                          {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                          Ouvrir le concours
+                      {status === 'active' && (
+                        <Button variant="destructive" onClick={() => handleStatusChange('closed')} disabled={updating} className="gap-2">
+                          {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <StopCircle className="w-4 h-4" />}
+                          Fermer manuellement
                         </Button>
                       )}
-                      {status === 'open' && (
+                      {status === 'tiebreak' && (
                         <>
-                          <Button variant="outline" onClick={() => handleStatusChange('paused')} disabled={updating} className="gap-2">
-                            <Pause className="w-4 h-4 text-amber-400" /> Suspendre
-                          </Button>
+                          <p className="text-xs text-amber-400 flex items-center gap-1.5 w-full">
+                            <Pause className="w-3.5 h-3.5" /> Égalité détectée — prolongation automatique jusqu'au départage
+                          </p>
                           <Button variant="destructive" onClick={() => handleStatusChange('closed')} disabled={updating} className="gap-2">
                             {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <StopCircle className="w-4 h-4" />}
-                            Fermer et désigner les gagnants
-                          </Button>
-                        </>
-                      )}
-                      {status === 'paused' && (
-                        <>
-                          <Button onClick={() => handleStatusChange('open')} disabled={updating} className="gap-2">
-                            <Play className="w-4 h-4" /> Réouvrir
-                          </Button>
-                          <Button variant="destructive" onClick={() => handleStatusChange('closed')} disabled={updating} className="gap-2">
-                            <StopCircle className="w-4 h-4" /> Fermer
+                            Forcer la clôture
                           </Button>
                         </>
                       )}
                       {status === 'closed' && (
-                        <Button variant="ghost" onClick={() => handleStatusChange('archived')} disabled={updating} className="gap-2">
-                          <Archive className="w-4 h-4" /> Archiver
-                        </Button>
+                        <p className="text-xs text-text-muted">Concours fermé. Le bot a annoncé le gagnant.</p>
                       )}
                     </div>
                   </Card>

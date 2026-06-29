@@ -29,20 +29,22 @@ const DAYS = [
 ];
 
 const DEFAULT_FORM = {
+  contest_title: '',
   guild_id: '',
   contest_channel_id: '',
   admin_role_id: '',
   photographer_role_id: '',
   announcement_message: '📸 Le concours screenshot est ouvert ! Postez vos plus belles captures dans ce salon.',
   allowed_reaction: '❤️',
+  points_1st: 100,
+  points_2nd: 75,
+  points_3rd: 50,
+  is_active: false,
   open_day: 'wednesday',
   open_time: '18:00',
   close_day: 'wednesday',
   close_time: '20:00',
   timezone: 'Europe/Paris',
-  participation_points: 5,
-  top_3_points: 15,
-  winner_points: 50,
   auto_mode_enabled: false,
   delete_invalid_messages: true,
   delete_invalid_reactions: true,
@@ -92,20 +94,22 @@ export default function ReglagesPage() {
         setSettings(data.settings);
         const s = data.settings;
         setForm({
+          contest_title: s.contest_title ?? '',
           guild_id: s.guild_id ?? '',
           contest_channel_id: s.contest_channel_id ?? '',
           admin_role_id: s.admin_role_id ?? '',
           photographer_role_id: s.photographer_role_id ?? '',
           announcement_message: s.announcement_message ?? DEFAULT_FORM.announcement_message,
           allowed_reaction: s.allowed_reaction,
+          points_1st: s.points_1st ?? 100,
+          points_2nd: s.points_2nd ?? 75,
+          points_3rd: s.points_3rd ?? 50,
+          is_active: s.is_active ?? false,
           open_day: s.open_day,
           open_time: s.open_time,
           close_day: s.close_day,
           close_time: s.close_time,
           timezone: s.timezone,
-          participation_points: s.participation_points,
-          top_3_points: s.top_3_points,
-          winner_points: s.winner_points,
           auto_mode_enabled: s.auto_mode_enabled,
           delete_invalid_messages: s.delete_invalid_messages,
           delete_invalid_reactions: s.delete_invalid_reactions,
@@ -177,6 +181,10 @@ export default function ReglagesPage() {
                 <h2 className="text-xs font-semibold text-cyan uppercase tracking-widest">Discord</h2>
                 <p className="text-xs text-text-muted">Ces IDs sont automatiquement remplis depuis l'onglet Discord après avoir configuré un serveur.</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2 sm:col-span-2">
+                    <Label>Titre du concours</Label>
+                    <Input value={form.contest_title} onChange={e => setField('contest_title', e.target.value)} placeholder="Concours Screenshot #1" />
+                  </div>
                   <div className="space-y-2">
                     <Label>Guild ID (Serveur)</Label>
                     <Input value={form.guild_id} onChange={e => setField('guild_id', e.target.value)} placeholder="123456789012345678" className="font-mono text-xs" />
@@ -246,16 +254,16 @@ export default function ReglagesPage() {
                 <h2 className="text-xs font-semibold text-cyan uppercase tracking-widest">Points</h2>
                 <div className="grid grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label>Participation</Label>
-                    <Input type="number" min={0} value={form.participation_points} onChange={e => setField('participation_points', Number(e.target.value))} />
+                    <Label>1ère place</Label>
+                    <Input type="number" min={0} value={form.points_1st} onChange={e => setField('points_1st', Number(e.target.value))} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Top 3</Label>
-                    <Input type="number" min={0} value={form.top_3_points} onChange={e => setField('top_3_points', Number(e.target.value))} />
+                    <Label>2ème place</Label>
+                    <Input type="number" min={0} value={form.points_2nd} onChange={e => setField('points_2nd', Number(e.target.value))} />
                   </div>
                   <div className="space-y-2">
-                    <Label>Gagnant</Label>
-                    <Input type="number" min={0} value={form.winner_points} onChange={e => setField('winner_points', Number(e.target.value))} />
+                    <Label>3ème place</Label>
+                    <Input type="number" min={0} value={form.points_3rd} onChange={e => setField('points_3rd', Number(e.target.value))} />
                   </div>
                 </div>
               </Card>
@@ -266,7 +274,8 @@ export default function ReglagesPage() {
               <Card className="glass p-6 space-y-4">
                 <h2 className="text-xs font-semibold text-cyan uppercase tracking-widest">Options du bot</h2>
                 {[
-                  { key: 'auto_mode_enabled' as const, label: 'Mode automatique', desc: 'Ouverture/clôture automatique selon les horaires définis ci-dessus' },
+                  { key: 'is_active' as const, label: 'Concours actif', desc: 'Active la détection de screenshots et les votes dans le salon' },
+                  { key: 'auto_mode_enabled' as const, label: 'Ouverture automatique', desc: 'Ouverture/clôture automatique chaque mercredi à 18h' },
                   { key: 'delete_invalid_messages' as const, label: 'Supprimer messages invalides', desc: 'Le bot supprime les messages sans image dans le salon concours' },
                   { key: 'delete_invalid_reactions' as const, label: 'Supprimer réactions invalides', desc: 'Le bot supprime les réactions autres que celle autorisée' },
                   { key: 'allow_text' as const, label: 'Autoriser texte', desc: 'Messages texte acceptés en plus des images' },

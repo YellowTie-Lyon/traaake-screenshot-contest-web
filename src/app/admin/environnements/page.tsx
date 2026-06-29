@@ -205,9 +205,9 @@ export default function EnvironnementsPage() {
                       <SettingRow label="Mode automatique" value={settings?.auto_mode_enabled} />
                       <SettingRow label="Ouverture" value={settings ? `${settings.open_day} à ${settings.open_time}` : null} />
                       <SettingRow label="Clôture" value={settings ? `${settings.close_day} à ${settings.close_time}` : null} />
-                      <SettingRow label="Points participation" value={settings?.participation_points} />
-                      <SettingRow label="Points Top 3" value={settings?.top_3_points} />
-                      <SettingRow label="Points gagnant" value={settings?.winner_points} />
+                      <SettingRow label="Points 1ère place" value={settings?.points_1st} />
+                      <SettingRow label="Points 2ème place" value={settings?.points_2nd} />
+                      <SettingRow label="Points 3ème place" value={settings?.points_3rd} />
                       <SettingRow label="App ID Discord" value={env.discord_app_id} />
                       <SettingRow label="Bot Token" value={env.discord_bot_token ? '••••••••••••••••' : null} />
 

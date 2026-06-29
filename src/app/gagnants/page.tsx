@@ -3,15 +3,14 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { ExternalLink, Calendar, ThumbsUp, Crown, Trophy } from "lucide-react";
+import { Calendar, ThumbsUp, Crown, Trophy } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mockWinners } from "@/data/mock";
-import { getRecentWinners, type WinnerEntry } from "@/features/public/api";
+import { getRecentWinners, getActiveEnvironment, type WinnerEntry } from "@/features/public/api";
 import { isSupabaseConfigured } from "@/lib/supabase/isConfigured";
 
 function formatDate(iso: string | null) {
@@ -25,11 +24,14 @@ export default function GagnantsPage() {
   const [loading, setLoading] = useState(configured);
 
   useEffect(() => {
-    if (!configured) return;
-    getRecentWinners(10).then(setWinners).finally(() => setLoading(false));
+    if (!configured) { setLoading(false); return; }
+    getActiveEnvironment().then(env => {
+      if (!env) { setLoading(false); return; }
+      getRecentWinners(env.id, 10).then(setWinners).finally(() => setLoading(false));
+    });
   }, [configured]);
 
-  const hasSuapabaseData = configured && !loading && winners.length > 0;
+  const hasRealData = configured && !loading && winners.length > 0;
 
   if (loading) {
     return (
@@ -39,23 +41,22 @@ export default function GagnantsPage() {
           <Skeleton className="h-12 w-64 mx-auto rounded-xl" />
           <Skeleton className="h-80 rounded-xl" />
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-            {[1,2,3].map(i => <Skeleton key={i} className="h-64 rounded-xl" />)}
+            {[1, 2, 3].map(i => <Skeleton key={i} className="h-64 rounded-xl" />)}
           </div>
         </main>
       </div>
     );
   }
 
-  // Use Supabase data if available, otherwise mock
-  const latest = hasSuapabaseData ? winners[0] : null;
-  const latestMock = !hasSuapabaseData ? mockWinners[0] : null;
-  const restWinners = hasSuapabaseData ? winners.slice(1) : mockWinners.slice(1);
+  const displayWinners = hasRealData ? winners : null;
+  const [latest, ...rest] = displayWinners ?? [];
+  const [latestMock, ...restMock] = mockWinners;
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
-
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+
         {/* Hero */}
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="text-center mb-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan/20 bg-cyan/5 text-cyan text-xs font-medium mb-4">
@@ -65,10 +66,19 @@ export default function GagnantsPage() {
             Derniers{" "}
             <span className="bg-gradient-to-r from-cyan to-cyan-light bg-clip-text text-transparent">Gagnants</span>
           </h1>
-          <p className="text-text-secondary text-lg">Les meilleures captures MSFS de chaque semaine.</p>
+          <p className="text-text-secondary text-lg">Les meilleures captures MSFS de chaque concours.</p>
         </motion.div>
 
-        {/* Latest winner — Supabase */}
+        {/* No data yet */}
+        {configured && !loading && !hasRealData && (
+          <div className="text-center py-16 mb-8">
+            <Trophy className="w-12 h-12 text-text-muted mx-auto mb-4" />
+            <p className="text-text-muted mb-2">Aucun gagnant pour l'instant.</p>
+            <p className="text-xs text-text-muted">Les résultats apparaîtront ici après la clôture du premier concours.</p>
+          </div>
+        )}
+
+        {/* Latest winner — real data */}
         {latest && (
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="mb-12">
             <Card className="glass overflow-hidden border-cyan/20">
@@ -77,9 +87,7 @@ export default function GagnantsPage() {
                   {latest.image_url ? (
                     <Image src={latest.image_url} alt={`Screenshot de ${latest.winner_name}`} fill className="object-cover" sizes="(max-width: 1024px) 100vw, 50vw" />
                   ) : (
-                    <div className="flex items-center justify-center h-full">
-                      <Trophy className="w-16 h-16 text-text-muted" />
-                    </div>
+                    <div className="flex items-center justify-center h-full"><Trophy className="w-16 h-16 text-text-muted" /></div>
                   )}
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent to-surface/80 hidden lg:block" />
                   <div className="absolute top-4 left-4">
@@ -100,12 +108,8 @@ export default function GagnantsPage() {
                     </div>
                   </div>
                   <div className="flex gap-4 text-sm">
-                    <div className="flex items-center gap-1.5 text-text-secondary">
-                      <ThumbsUp className="h-4 w-4 text-cyan" />{latest.vote_count} votes
-                    </div>
-                    <div className="flex items-center gap-1.5 text-text-secondary">
-                      <Calendar className="h-4 w-4 text-cyan" />{formatDate(latest.closed_at)}
-                    </div>
+                    <div className="flex items-center gap-1.5 text-text-secondary"><ThumbsUp className="h-4 w-4 text-cyan" />{latest.vote_count} votes</div>
+                    <div className="flex items-center gap-1.5 text-text-secondary"><Calendar className="h-4 w-4 text-cyan" />{formatDate(latest.closed_at)}</div>
                   </div>
                 </div>
               </div>
@@ -114,7 +118,7 @@ export default function GagnantsPage() {
         )}
 
         {/* Latest winner — mock fallback */}
-        {latestMock && (
+        {!hasRealData && latestMock && (
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.1 }} className="mb-12">
             <Card className="glass overflow-hidden border-cyan/20">
               <div className="grid grid-cols-1 lg:grid-cols-2">
@@ -138,41 +142,28 @@ export default function GagnantsPage() {
                       <p className="text-sm text-text-muted">Photographe de la semaine</p>
                     </div>
                   </div>
-                  <div className="flex gap-4 mb-6 text-sm">
+                  <div className="flex gap-4 text-sm">
                     <div className="flex items-center gap-1.5 text-text-secondary"><ThumbsUp className="h-4 w-4 text-cyan" />{latestMock.votes} votes</div>
                     <div className="flex items-center gap-1.5 text-text-secondary"><Calendar className="h-4 w-4 text-cyan" />{latestMock.date}</div>
                   </div>
-                  <Button variant="outline" className="w-fit gap-2" asChild>
-                    <a href={latestMock.discordMessageUrl} target="_blank" rel="noopener noreferrer">
-                      <ExternalLink className="h-4 w-4" />Voir sur Discord
-                    </a>
-                  </Button>
                 </div>
               </div>
             </Card>
           </motion.div>
         )}
 
-        {/* No data yet */}
-        {configured && !loading && winners.length === 0 && (
-          <div className="text-center py-16">
-            <Trophy className="w-12 h-12 text-text-muted mx-auto mb-4" />
-            <p className="text-text-muted">Aucun gagnant pour l'instant. Les résultats apparaîtront ici après la clôture du premier concours.</p>
-          </div>
-        )}
-
         {/* Past winners */}
-        {restWinners.length > 0 && (
+        {(hasRealData ? rest : restMock).length > 0 && (
           <>
             <h2 className="text-xl font-semibold text-text-primary mb-6">Concours précédents</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {hasSuapabaseData ? (
-                (restWinners as WinnerEntry[]).map((winner, idx) => (
+              {hasRealData ? (
+                (rest as WinnerEntry[]).map((winner, idx) => (
                   <motion.div key={winner.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + idx * 0.08 }}>
                     <Card className="glass overflow-hidden group glass-hover transition-all duration-300">
                       <div className="relative h-48 overflow-hidden bg-surface-2">
                         {winner.image_url ? (
-                          <Image src={winner.image_url} alt="screenshot" fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" />
+                          <Image src={winner.image_url} alt="screenshot" fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="33vw" />
                         ) : (
                           <div className="flex items-center justify-center h-full"><Trophy className="w-8 h-8 text-text-muted" /></div>
                         )}
@@ -200,17 +191,16 @@ export default function GagnantsPage() {
                   </motion.div>
                 ))
               ) : (
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                (restWinners as any[]).map((winner, idx) => (
+                restMock.map((winner, idx) => (
                   <motion.div key={winner.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 + idx * 0.1 }}>
                     <Card className="glass overflow-hidden group glass-hover transition-all duration-300">
                       <div className="relative h-48 overflow-hidden">
-                        <Image src={winner.screenshotUrl} alt={`Screenshot de ${winner.member.username}`} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw" />
+                        <Image src={winner.screenshotUrl} alt={`Screenshot de ${winner.member.username}`} fill className="object-cover group-hover:scale-105 transition-transform duration-500" sizes="33vw" />
                         <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
                         <div className="absolute bottom-3 left-3"><Badge variant="default" className="text-xs">{winner.week}</Badge></div>
                       </div>
                       <CardContent className="p-4">
-                        <div className="flex items-center gap-2 mb-3">
+                        <div className="flex items-center gap-2">
                           <Avatar className="h-7 w-7">
                             <AvatarImage src={winner.member.avatar} alt={winner.member.username} />
                             <AvatarFallback>{winner.member.username[0]}</AvatarFallback>
@@ -223,11 +213,6 @@ export default function GagnantsPage() {
                             <ThumbsUp className="h-3 w-3 text-cyan" />{winner.votes}
                           </div>
                         </div>
-                        <Button variant="ghost" size="sm" className="w-full text-xs gap-1.5" asChild>
-                          <a href={winner.discordMessageUrl} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="h-3.5 w-3.5" />Voir sur Discord
-                          </a>
-                        </Button>
                       </CardContent>
                     </Card>
                   </motion.div>

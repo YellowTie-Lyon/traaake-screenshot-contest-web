@@ -1,5 +1,5 @@
 export type EnvironmentName = 'test' | 'production'
-export type ContestStatus = 'draft' | 'open' | 'paused' | 'closed' | 'archived'
+export type ContestStatus = 'active' | 'tiebreak' | 'closed'
 export type UserRole = 'owner' | 'administrator' | 'moderator' | 'viewer'
 
 export interface DbEnvironment {
@@ -16,26 +16,28 @@ export interface DbEnvironment {
 export interface DbContestSettings {
   id: string
   environment_id: string
+  is_active: boolean
+  contest_title: string | null
   guild_id: string | null
   contest_channel_id: string | null
   admin_role_id: string | null
   photographer_role_id: string | null
   announcement_message: string | null
   allowed_reaction: string
+  points_1st: number
+  points_2nd: number
+  points_3rd: number
+  // Legacy fields (kept for compatibility)
   auto_mode_enabled: boolean
   open_day: string
   open_time: string
   close_day: string
   close_time: string
   timezone: string
-  max_entries_per_user: number
   allow_text: boolean
   allow_video: boolean
   delete_invalid_messages: boolean
   delete_invalid_reactions: boolean
-  participation_points: number
-  top_3_points: number
-  winner_points: number
   created_at: string
   updated_at: string
 }
@@ -46,12 +48,12 @@ export interface DbContest {
   season_id: string | null
   status: ContestStatus
   title: string | null
-  discord_announcement_message_id: string | null
   started_at: string | null
   ends_at: string | null
   closed_at: string | null
   winner_discord_user_id: string | null
   winner_participation_id: string | null
+  warning_sent: boolean
   total_participations: number
   total_votes: number
   created_at: string
@@ -65,6 +67,25 @@ export interface DbSeason {
   ends_at: string | null
   is_active: boolean
   created_at: string
+}
+
+export interface DbParticipant {
+  id: string
+  discord_user_id: string
+  discord_username: string | null
+  discord_display_name: string | null
+  avatar_url: string | null
+  updated_at: string
+}
+
+export interface DbParticipation {
+  id: string
+  participant_id: string
+  contest_id: string
+  image_url: string | null
+  message_id: string | null
+  vote_count: number
+  submitted_at: string
 }
 
 export interface DbUserProfile {
