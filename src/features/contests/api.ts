@@ -73,7 +73,7 @@ function nextWednesdayAt18(): string {
   return new Date(`${targetDateStr}T${String(18 - offset).padStart(2, '0')}:00:00Z`).toISOString()
 }
 
-export async function openContest(environmentId: string, title: string): Promise<DbContest> {
+export async function openContest(environmentId: string, title: string, theme?: string): Promise<DbContest> {
   if (!supabase) throw new Error('Supabase not configured')
 
   // Get or create active season
@@ -107,6 +107,7 @@ export async function openContest(environmentId: string, title: string): Promise
       environment_id: environmentId,
       season_id: seasonId,
       title,
+      ...(theme ? { theme } : {}),
       status: 'active',
       started_at: new Date().toISOString(),
       ends_at: nextWednesdayAt18(),

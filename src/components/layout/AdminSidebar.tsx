@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard, Trophy, Settings, History, ExternalLink,
-  Bot, LogOut, ChevronDown, Users,
+  Bot, LogOut, ChevronDown, Users, ShieldOff,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/features/auth/hooks";
@@ -16,6 +16,8 @@ import type { TabSlug } from "@/lib/supabase/types";
 const allNavItems: { href: string; label: string; icon: React.ElementType; exact?: boolean; slug: TabSlug }[] = [
   { href: "/gestion", label: "Dashboard", icon: LayoutDashboard, exact: true, slug: "dashboard" },
   { href: "/gestion/concours", label: "Concours", icon: Trophy, slug: "concours" },
+  { href: "/gestion/membres", label: "Membres", icon: Users, slug: "membres" },
+  { href: "/gestion/bans", label: "Bans", icon: ShieldOff, slug: "bans" },
   { href: "/gestion/discord", label: "Intégration Discord", icon: Bot, slug: "discord" },
   { href: "/gestion/reglages", label: "Réglages", icon: Settings, slug: "reglages" },
   { href: "/gestion/historique", label: "Historique", icon: History, slug: "historique" },
@@ -64,7 +66,7 @@ export function AdminSidebar() {
         </div>
         <div>
           <span className="text-lg font-bold bg-gradient-to-r from-cyan to-cyan-light bg-clip-text text-transparent">
-            TraKr
+            TraaaKe
           </span>
           <p className="text-xs text-text-muted">Admin Panel</p>
         </div>
@@ -87,7 +89,7 @@ export function AdminSidebar() {
           );
         })}
 
-        {/* Utilisateurs — owner only */}
+        {/* Utilisateurs — owner only, not in allNavItems permission filter */}
         {isOwner && (
           <Link href="/gestion/utilisateurs"
             className={cn(
@@ -96,7 +98,7 @@ export function AdminSidebar() {
             )}
           >
             <Users className="h-4 w-4" />
-            Utilisateurs
+            Utilisateurs admin
           </Link>
         )}
       </nav>

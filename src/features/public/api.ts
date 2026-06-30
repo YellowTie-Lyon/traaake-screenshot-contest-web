@@ -93,15 +93,31 @@ export async function getSeasonLeaderboard(seasonId?: string): Promise<Leaderboa
 
   if (!participants || participants.length === 0) return []
 
-  // Points from ledger for this season (may be empty for historical seasons)
-  const { data: ledger } = await supabase
+  // points_ledger has no season_id column — resolve via season's contests
+  const { data: seasonContests } = await supabase
+    .from('contests')
+    .select('id')
+    .eq('season_id', sid)
+  const contestIds = (seasonContests ?? []).map(c => c.id)
+
+  const pointsMap = new Map<string, number>()
+
+  if (contestIds.length > 0) {
+    const { data: contestPoints } = await supabase
+      .from('points_ledger')
+      .select('participant_id, points')
+      .in('contest_id', contestIds)
+    for (const row of contestPoints ?? []) {
+      pointsMap.set(row.participant_id, (pointsMap.get(row.participant_id) ?? 0) + row.points)
+    }
+  }
+
+  // Manual adjustments (contest_id IS NULL) — apply across all seasons
+  const { data: manualPoints } = await supabase
     .from('points_ledger')
     .select('participant_id, points')
-    .eq('season_id', sid)
-
-  // Aggregate ledger points by participant
-  const pointsMap = new Map<string, number>()
-  for (const row of ledger ?? []) {
+    .is('contest_id', null)
+  for (const row of manualPoints ?? []) {
     pointsMap.set(row.participant_id, (pointsMap.get(row.participant_id) ?? 0) + row.points)
   }
 

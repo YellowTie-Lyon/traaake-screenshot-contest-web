@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Play, Pause, StopCircle, Archive, Loader2, Plus, Trophy, Image as ImageIcon, Heart, Clock, RotateCcw, X } from "lucide-react";
+import { Play, Pause, StopCircle, Loader2, Plus, Trophy, Image as ImageIcon, Heart, Clock, RotateCcw, X, Tag } from "lucide-react";
 import Image from "next/image";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card } from "@/components/ui/card";
@@ -126,6 +126,7 @@ export default function ConcoursPage() {
   const [updating, setUpdating] = useState(false);
   const [opening, setOpening] = useState(false);
   const [newTitle, setNewTitle] = useState('');
+  const [newTheme, setNewTheme] = useState('');
   const [showOpenForm, setShowOpenForm] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -189,11 +190,12 @@ export default function ConcoursPage() {
     if (!selectedEnvId || !newTitle.trim()) return;
     setOpening(true);
     try {
-      const c = await openContest(selectedEnvId, newTitle.trim());
+      const c = await openContest(selectedEnvId, newTitle.trim(), newTheme.trim() || undefined);
       setContest(c);
       setParticipations([]);
       setShowOpenForm(false);
       setNewTitle('');
+      setNewTheme('');
       toast.success("Concours ouvert — le bot le détectera via Realtime");
     } catch {
       toast.error("Erreur lors de l'ouverture");
@@ -289,17 +291,23 @@ export default function ConcoursPage() {
                       <Plus className="w-4 h-4" /> Ouvrir un concours
                     </Button>
                   ) : (
-                    <div className="flex gap-2 max-w-sm mx-auto">
+                    <div className="flex flex-col gap-2 max-w-sm mx-auto">
                       <Input
                         value={newTitle}
                         onChange={e => setNewTitle(e.target.value)}
-                        placeholder="Ex : Concours Semaine 26 · Golden Hour"
+                        placeholder="Titre — ex : Concours Semaine 26"
                         onKeyDown={e => e.key === 'Enter' && handleOpen()}
                         autoFocus
                       />
-                      <Button onClick={handleOpen} disabled={opening || !newTitle.trim()} className="gap-1.5 flex-shrink-0">
+                      <Input
+                        value={newTheme}
+                        onChange={e => setNewTheme(e.target.value)}
+                        placeholder="Thème (optionnel) — ex : Golden Hour"
+                        onKeyDown={e => e.key === 'Enter' && handleOpen()}
+                      />
+                      <Button onClick={handleOpen} disabled={opening || !newTitle.trim()} className="gap-1.5">
                         {opening ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                        Ouvrir
+                        Ouvrir le concours
                       </Button>
                     </div>
                   )}
@@ -323,15 +331,20 @@ export default function ConcoursPage() {
                           {contest.started_at && <span>Ouvert le {new Date(contest.started_at).toLocaleString("fr-FR")}</span>}
                           {contest.ends_at && <span>· Fermeture prévue le {new Date(contest.ends_at).toLocaleString("fr-FR")}</span>}
                         </div>
+                        {contest.theme && (
+                          <p className="text-sm text-cyan flex items-center gap-1.5 mt-1">
+                            <Tag className="w-3.5 h-3.5" /> {contest.theme}
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
                       {[
-                        { label: "Participations", value: contest.total_participations },
-                        { label: "Votes", value: contest.total_votes },
-                        { label: "Chargées", value: participations.length },
+                        { label: "Participants", value: participations.length },
+                        { label: "Votes totaux", value: participations.reduce((s, p) => s + p.vote_count, 0) },
                         { label: "Top votes", value: participations[0]?.vote_count ?? 0 },
+                        { label: "Statut", value: status === 'tiebreak' ? '⚡ Égalité' : status === 'active' ? '🟢 Actif' : '—' },
                       ].map(({ label, value }) => (
                         <div key={label} className="bg-surface-2 rounded-xl p-3 border border-border-subtle text-center">
                           <p className="text-2xl font-bold text-text-primary">{value}</p>
@@ -378,9 +391,6 @@ export default function ConcoursPage() {
                       {status === 'closed' && (
                         <div className="flex flex-wrap gap-2 items-center">
                           <p className="text-xs text-text-muted flex-1">Concours fermé — le bot a annoncé le gagnant.</p>
-                          <Button variant="ghost" onClick={() => handleStatusChange('archived')} disabled={updating} className="gap-2">
-                            <Archive className="w-4 h-4" /> Archiver
-                          </Button>
                         </div>
                       )}
                     </div>

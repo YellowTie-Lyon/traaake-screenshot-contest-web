@@ -1,16 +1,16 @@
 import { supabase } from '@/lib/supabase/client'
-import type { DbDiscordGuildConfig } from '@/lib/supabase/types'
 
 export interface DashboardData {
   contest: {
     id: string
     status: string
     title: string | null
+    theme: string | null
     started_at: string | null
-    total_participations: number
-    total_votes: number
+    ends_at: string | null
+    participationCount: number
+    voteCount: number
   } | null
-  guildConfig: DbDiscordGuildConfig | null
   leader: {
     discord_display_name: string | null
     discord_username: string | null
@@ -21,22 +21,52 @@ export interface DashboardData {
   } | null
 }
 
-export async function getDashboardData(environmentId: string): Promise<DashboardData> {
-  if (!supabase) return { contest: null, guildConfig: null, leader: null }
+async function getSeasonPoints(seasonId: string): Promise<Map<string, number>> {
+  if (!supabase) return new Map()
 
-  const [contestRes, guildRes, seasonRes] = await Promise.all([
+  // Get all contest IDs for this season
+  const { data: seasonContests } = await supabase
+    .from('contests')
+    .select('id')
+    .eq('season_id', seasonId)
+
+  const contestIds = (seasonContests ?? []).map(c => c.id)
+  const pointsMap = new Map<string, number>()
+
+  // Points from season contests
+  if (contestIds.length > 0) {
+    const { data: contestPoints } = await supabase
+      .from('points_ledger')
+      .select('participant_id, points')
+      .in('contest_id', contestIds)
+    for (const r of contestPoints ?? []) {
+      pointsMap.set(r.participant_id, (pointsMap.get(r.participant_id) ?? 0) + r.points)
+    }
+  }
+
+  // Manual adjustments (contest_id IS NULL — included in all seasons)
+  const { data: manualPoints } = await supabase
+    .from('points_ledger')
+    .select('participant_id, points')
+    .is('contest_id', null)
+  for (const r of manualPoints ?? []) {
+    pointsMap.set(r.participant_id, (pointsMap.get(r.participant_id) ?? 0) + r.points)
+  }
+
+  return pointsMap
+}
+
+export async function getDashboardData(environmentId: string): Promise<DashboardData> {
+  if (!supabase) return { contest: null, leader: null }
+
+  const [contestRes, seasonRes] = await Promise.all([
     supabase
       .from('contests')
-      .select('id, status, title, started_at, total_participations, total_votes')
+      .select('id, status, title, theme, started_at, ends_at')
       .eq('environment_id', environmentId)
-      .in('status', ['active', 'tiebreak', 'suspended'])
-      .order('created_at', { ascending: false })
+      .in('status', ['active', 'tiebreak'])
+      .order('started_at', { ascending: false })
       .limit(1)
-      .single(),
-    supabase
-      .from('discord_guild_configs')
-      .select('*')
-      .eq('environment_id', environmentId)
       .single(),
     supabase
       .from('seasons')
@@ -45,85 +75,72 @@ export async function getDashboardData(environmentId: string): Promise<Dashboard
       .single(),
   ])
 
-  const contest = contestRes.data ?? null
-  const guildConfig = (guildRes.data ?? null) as DbDiscordGuildConfig | null
+  const contestRow = contestRes.data ?? null
   const seasonId = seasonRes.data?.id ?? null
 
+  // Live participation/vote counts from participations table
+  let participationCount = 0
+  let voteCount = 0
+  let contest: DashboardData['contest'] = null
+
+  if (contestRow) {
+    const { data: parts } = await supabase
+      .from('participations')
+      .select('vote_count')
+      .eq('contest_id', contestRow.id)
+    participationCount = (parts ?? []).length
+    voteCount = (parts ?? []).reduce((s, r) => s + (r.vote_count ?? 0), 0)
+
+    contest = {
+      id: contestRow.id,
+      status: contestRow.status,
+      title: contestRow.title,
+      theme: contestRow.theme ?? null,
+      started_at: contestRow.started_at,
+      ends_at: contestRow.ends_at,
+      participationCount,
+      voteCount,
+    }
+  }
+
+  // Leader: participant with highest total_points this season
   let leader: DashboardData['leader'] = null
-
   if (seasonId) {
-    const { data: ledger } = await supabase
-      .from('points_ledger')
-      .select('points, participant:participant_id(id, discord_display_name, discord_username, discord_user_id, avatar_url)')
-      .eq('season_id', seasonId)
+    const [pointsMap, participantsRes] = await Promise.all([
+      getSeasonPoints(seasonId),
+      supabase
+        .from('participants')
+        .select('id, discord_display_name, discord_username, avatar_url, win_count, participation_count')
+        .gt('participation_count', 0),
+    ])
 
-    if (ledger && ledger.length > 0) {
-      // Aggregate points by participant
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const map = new Map<string, { p: any; points: number }>()
-      for (const row of ledger) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const p = row.participant as any
-        if (!p?.id) continue
-        const existing = map.get(p.id)
-        if (existing) {
-          existing.points += row.points
-        } else {
-          map.set(p.id, { p, points: row.points })
-        }
-      }
+    let topId = ''
+    let topPoints = -1
+    for (const [id, pts] of pointsMap) {
+      if (pts > topPoints) { topPoints = pts; topId = id }
+    }
 
-      // Get participations + wins
-      const participantIds = [...map.keys()]
-      const { data: parts } = await supabase
-        .from('participations')
-        .select('participant_id, id, contest:contest_id(winner_participation_id)')
-        .in('participant_id', participantIds)
+    // Fallback: if no ledger data, use win_count
+    if (!topId && (participantsRes.data ?? []).length > 0) {
+      const sorted = [...(participantsRes.data ?? [])].sort((a, b) => (b.win_count ?? 0) - (a.win_count ?? 0))
+      topId = sorted[0]?.id ?? ''
+      topPoints = sorted[0]?.win_count ?? 0
+    }
 
-      const partCountMap = new Map<string, number>()
-      const winsMap = new Map<string, number>()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const row of (parts ?? []) as any[]) {
-        const pid = row.participant_id
-        partCountMap.set(pid, (partCountMap.get(pid) ?? 0) + 1)
-        if (row.contest?.winner_participation_id === row.id) {
-          winsMap.set(pid, (winsMap.get(pid) ?? 0) + 1)
-        }
-      }
-
-      // Find top participant
-      let topId = ''
-      let topPoints = -1
-      for (const [id, { points }] of map) {
-        if (points > topPoints) { topPoints = points; topId = id }
-      }
-
-      if (topId) {
-        const { p } = map.get(topId)!
+    if (topId) {
+      const p = (participantsRes.data ?? []).find(x => x.id === topId)
+      if (p) {
         leader = {
           discord_display_name: p.discord_display_name ?? null,
           discord_username: p.discord_username ?? null,
           avatar_url: p.avatar_url ?? null,
-          total_points: topPoints,
-          wins: winsMap.get(topId) ?? 0,
-          participations: partCountMap.get(topId) ?? 0,
+          total_points: topPoints > 0 ? topPoints : (p.win_count ?? 0),
+          wins: p.win_count ?? 0,
+          participations: p.participation_count ?? 0,
         }
       }
     }
   }
 
-  return { contest, guildConfig, leader }
-}
-
-export function isBotOnline(guildConfig: DbDiscordGuildConfig | null): boolean {
-  if (!guildConfig?.bot_present) return false
-  if (!guildConfig.last_sync) return false
-  const lastSync = new Date(guildConfig.last_sync).getTime()
-  return Date.now() - lastSync < 10 * 60 * 1000 // 10 minutes
-}
-
-export async function sendBotCommand(environmentId: string, command: string): Promise<void> {
-  if (!supabase) throw new Error('Supabase not configured')
-  const { error } = await supabase.from('bot_commands').insert({ environment_id: environmentId, command })
-  if (error) throw error
+  return { contest, leader }
 }

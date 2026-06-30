@@ -1,4 +1,5 @@
 export type EnvironmentName = 'test' | 'production'
+// Bot statuses: active | tiebreak | closed. suspended/archived are admin-only overrides.
 export type ContestStatus = 'active' | 'tiebreak' | 'suspended' | 'closed' | 'archived'
 export type UserRole = 'owner' | 'administrator' | 'moderator' | 'viewer'
 
@@ -48,12 +49,15 @@ export interface DbContest {
   season_id: string | null
   status: ContestStatus
   title: string | null
+  theme: string | null
   started_at: string | null
   ends_at: string | null
   closed_at: string | null
-  winner_discord_user_id: string | null
   winner_participation_id: string | null
-  warning_sent: boolean
+  opening_message_id: string | null
+  rules_message_id: string | null
+  tiebreak_message_id: string | null
+  // Denormalized counters — may not be up to date, prefer live queries
   total_participations: number
   total_votes: number
   created_at: string
@@ -75,7 +79,20 @@ export interface DbParticipant {
   discord_username: string | null
   discord_display_name: string | null
   avatar_url: string | null
+  win_count: number
+  participation_count: number
   updated_at: string
+}
+
+export interface DbContestBan {
+  id: string
+  environment_id: string
+  discord_user_id: string
+  discord_username: string
+  reason: string | null
+  banned_by: string
+  banned_at: string
+  expires_at: string | null
 }
 
 export interface DbParticipation {
@@ -88,11 +105,13 @@ export interface DbParticipation {
   submitted_at: string
 }
 
-export type TabSlug = 'dashboard' | 'concours' | 'discord' | 'reglages' | 'historique' | 'utilisateurs'
+export type TabSlug = 'dashboard' | 'concours' | 'membres' | 'bans' | 'discord' | 'reglages' | 'historique' | 'utilisateurs'
 
 export const ALL_TABS: { slug: TabSlug; label: string }[] = [
   { slug: 'dashboard', label: 'Dashboard' },
   { slug: 'concours', label: 'Concours' },
+  { slug: 'membres', label: 'Membres' },
+  { slug: 'bans', label: 'Bans' },
   { slug: 'discord', label: 'Intégration Discord' },
   { slug: 'reglages', label: 'Réglages' },
   { slug: 'historique', label: 'Historique' },
