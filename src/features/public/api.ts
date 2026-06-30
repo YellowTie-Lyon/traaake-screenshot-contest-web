@@ -203,6 +203,18 @@ export async function getActiveContestPublic(environmentId?: string) {
   return data ?? null
 }
 
+export async function getSeasonParticipantStats(): Promise<{ totalParticipations: number; uniqueWinners: number }> {
+  if (!supabase) return { totalParticipations: 0, uniqueWinners: 0 }
+  const { data } = await supabase
+    .from('participants')
+    .select('participation_count, win_count')
+  if (!data) return { totalParticipations: 0, uniqueWinners: 0 }
+  return {
+    totalParticipations: data.reduce((s, r) => s + (r.participation_count ?? 0), 0),
+    uniqueWinners: data.filter(r => (r.win_count ?? 0) > 0).length,
+  }
+}
+
 export async function getSeasonTotalVotes(seasonId?: string): Promise<number> {
   if (!supabase) return 0
   let sid = seasonId
