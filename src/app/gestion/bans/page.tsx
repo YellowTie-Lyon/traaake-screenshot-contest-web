@@ -2,15 +2,13 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { toast } from "sonner";
-import { Shield, ShieldOff, Clock, Loader2, RefreshCw } from "lucide-react";
+import { ShieldOff, Clock, RefreshCw, Shield } from "lucide-react";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getEnvironments } from "@/features/environments/api";
-import { getActiveBans, getAllBans, liftBan, type DbContestBan } from "@/features/bans/api";
+import { getActiveBans, getAllBans, type DbContestBan } from "@/features/bans/api";
 import { isSupabaseConfigured } from "@/lib/supabase/isConfigured";
 
 function formatDate(date: string) {
@@ -24,7 +22,7 @@ function isExpired(ban: DbContestBan) {
   return new Date(ban.expires_at) <= new Date();
 }
 
-function BanRow({ ban, onLift, lifting }: { ban: DbContestBan; onLift: (id: string) => void; lifting: boolean }) {
+function BanRow({ ban }: { ban: DbContestBan }) {
   const permanent = !ban.expires_at;
   const expired = isExpired(ban);
   return (
@@ -58,18 +56,6 @@ function BanRow({ ban, onLift, lifting }: { ban: DbContestBan; onLift: (id: stri
           )}
         </div>
       </div>
-      {!expired && (
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => onLift(ban.id)}
-          disabled={lifting}
-          className="flex-shrink-0 text-text-muted hover:text-green-400 hover:bg-green-500/10 gap-1.5"
-        >
-          {lifting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Shield className="w-3.5 h-3.5" />}
-          Lever
-        </Button>
-      )}
     </div>
   );
 }
@@ -78,7 +64,6 @@ export default function BansPage() {
   const configured = isSupabaseConfigured();
   const [bans, setBans] = useState<DbContestBan[]>([]);
   const [loading, setLoading] = useState(configured);
-  const [liftingId, setLiftingId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [envId, setEnvId] = useState<string>('');
 
@@ -102,19 +87,6 @@ export default function BansPage() {
   useEffect(() => {
     if (envId) load(envId, showAll);
   }, [showAll, envId, load]);
-
-  async function handleLift(banId: string) {
-    setLiftingId(banId);
-    try {
-      await liftBan(banId);
-      toast.success("Ban levé");
-      if (envId) await load(envId, showAll);
-    } catch {
-      toast.error("Erreur lors de la levée du ban");
-    } finally {
-      setLiftingId(null);
-    }
-  }
 
   const activeBans = bans.filter(b => !isExpired(b));
   const expiredBans = bans.filter(b => isExpired(b));
@@ -169,8 +141,6 @@ export default function BansPage() {
                   <BanRow
                     key={ban.id}
                     ban={ban}
-                    onLift={handleLift}
-                    lifting={liftingId === ban.id}
                   />
                 ))}
               </div>
@@ -197,8 +167,6 @@ export default function BansPage() {
                   <BanRow
                     key={ban.id}
                     ban={ban}
-                    onLift={handleLift}
-                    lifting={liftingId === ban.id}
                   />
                 ))}
               </div>

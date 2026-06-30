@@ -3,22 +3,18 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
-  Trophy, Users, ThumbsUp, Zap, XCircle, Calendar, Loader2, Heart, Tag,
+  Trophy, Users, ThumbsUp, Zap, Calendar, Heart, Tag,
 } from "lucide-react";
-import { toast } from "sonner";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SupabaseBanner } from "@/components/admin/SupabaseBanner";
 import { getEnvironments } from "@/features/environments/api";
-import { updateContestStatus } from "@/features/contests/api";
 import { getDashboardData, type DashboardData } from "@/features/dashboard/api";
 import { isSupabaseConfigured } from "@/lib/supabase/isConfigured";
 import { supabase } from "@/lib/supabase/client";
-import type { ContestStatus } from "@/lib/supabase/types";
 
 const STATUS_LABELS: Record<string, string> = {
   active: "OUVERT", tiebreak: "ÉGALITÉ", closed: "FERMÉ",
@@ -32,8 +28,6 @@ export default function AdminDashboard() {
   const [data, setData] = useState<DashboardData>({ contest: null, leader: null });
   const [envId, setEnvId] = useState<string>('');
   const [loading, setLoading] = useState(configured);
-  const [updating, setUpdating] = useState(false);
-
   const load = useCallback(async (eid: string) => {
     setLoading(true);
     const d = await getDashboardData(eid);
@@ -64,18 +58,6 @@ export default function AdminDashboard() {
       .subscribe();
     return () => { supabase?.removeChannel(ch); };
   }, [data.contest?.id, envId, load]);
-
-  async function handleClose() {
-    if (!data.contest) return;
-    if (!confirm("Fermer le concours actuel ?")) return;
-    setUpdating(true);
-    try {
-      await updateContestStatus(data.contest.id, 'closed' as ContestStatus);
-      toast.success("Concours fermé");
-      if (envId) await load(envId);
-    } catch { toast.error("Erreur lors de la fermeture"); }
-    finally { setUpdating(false); }
-  }
 
   const { contest, leader } = data;
   const status = contest?.status ?? null;
@@ -175,18 +157,6 @@ export default function AdminDashboard() {
                         <Heart className="h-3.5 w-3.5" /> {contest.voteCount} votes
                       </span>
                     </div>
-                    {['active', 'tiebreak'].includes(status ?? '') && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleClose}
-                        disabled={updating}
-                        className="gap-2 mt-2"
-                      >
-                        {updating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5" />}
-                        Fermer le concours
-                      </Button>
-                    )}
                   </>
                 ) : (
                   <p className="text-text-muted text-sm">Aucun concours actif — ouvrez-en un depuis la page Concours.</p>
