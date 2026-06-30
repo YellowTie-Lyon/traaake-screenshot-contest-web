@@ -14,12 +14,13 @@ import { mockMembers } from "@/data/mock";
 import {
   getSeasonLeaderboard,
   getActiveContestLeaderboard,
-  getActiveSeason,
+  getSeasons,
   getActiveContestPublic,
   getActiveEnvironment,
   getSeasonParticipantStats,
   type LeaderboardEntry,
   type CurrentContestEntry,
+  type Season,
 } from "@/features/public/api";
 import { isSupabaseConfigured } from "@/lib/supabase/isConfigured";
 import { supabase } from "@/lib/supabase/client";
@@ -33,20 +34,32 @@ type Tab = 'saison' | 'concours';
 export default function ClassementPage() {
   const configured = isSupabaseConfigured();
   const [tab, setTab] = useState<Tab>('saison');
+  const [seasons, setSeasons] = useState<Season[]>([]);
+  const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null);
   const [seasonEntries, setSeasonEntries] = useState<LeaderboardEntry[]>([]);
   const [contestEntries, setContestEntries] = useState<CurrentContestEntry[]>([]);
-  const [seasonName, setSeasonName] = useState<string | null>(null);
   const [activeContest, setActiveContest] = useState<{ id: string; total_participations: number; total_votes: number; title: string | null; status: string; started_at: string | null; ends_at: string | null } | null>(null);
   const [loading, setLoading] = useState(configured);
+  const [lbLoading, setLbLoading] = useState(false);
   const [seasonTotalParts, setSeasonTotalParts] = useState(0);
   const [uniqueWinners, setUniqueWinners] = useState(0);
 
+  const loadLeaderboard = useCallback(async (seasonId: string) => {
+    setLbLoading(true);
+    const lb = await getSeasonLeaderboard(seasonId);
+    setSeasonEntries(lb);
+    setLbLoading(false);
+  }, []);
+
   const loadData = useCallback(async () => {
     if (!configured) { setLoading(false); return; }
-    const [season, env] = await Promise.all([getActiveSeason(), getActiveEnvironment()]);
-    setSeasonName(season?.name ?? null);
+    const [allSeasons, env] = await Promise.all([getSeasons(), getActiveEnvironment()]);
+    setSeasons(allSeasons);
+    const active = allSeasons.find(s => s.is_active) ?? allSeasons[0] ?? null;
+    const activeId = active?.id ?? null;
+    setSelectedSeasonId(activeId);
     const [lb, contest, contestLb, participantStats] = await Promise.all([
-      getSeasonLeaderboard(season?.id),
+      activeId ? getSeasonLeaderboard(activeId) : Promise.resolve([]),
       env ? getActiveContestPublic(env.id) : Promise.resolve(null),
       env ? getActiveContestLeaderboard(env.id) : Promise.resolve([]),
       getSeasonParticipantStats(),
@@ -60,6 +73,12 @@ export default function ClassementPage() {
   }, [configured]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Reload leaderboard when user switches season
+  useEffect(() => {
+    if (selectedSeasonId && !loading) loadLeaderboard(selectedSeasonId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedSeasonId]);
 
   // Realtime: refresh contest stats + leaderboard on any relevant change
   useEffect(() => {
@@ -140,7 +159,7 @@ export default function ClassementPage() {
         {/* Hero */}
         <motion.div {...fadeUp} transition={{ duration: 0.5 }} className="text-center mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-cyan/20 bg-cyan/5 text-cyan text-xs font-medium mb-4">
-            <Zap className="h-3 w-3" />{seasonName ?? "Saison 2026"}
+            <Zap className="h-3 w-3" />{seasons.find(s => s.id === selectedSeasonId)?.name ?? "Saison 2026"}
           </div>
           <h1 className="text-4xl sm:text-5xl font-bold text-text-primary mb-3">
             Classement{" "}
@@ -176,12 +195,30 @@ export default function ClassementPage() {
         </motion.div>
 
         {/* Tabs */}
-        {hasActiveContest && (
-          <div className="flex gap-2 mb-8 flex-wrap">
-            <button onClick={() => setTab('saison')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${tab === 'saison' ? 'bg-cyan/10 border-cyan/30 text-cyan' : 'border-border-subtle text-text-secondary hover:text-text-primary hover:bg-surface-2'}`}>
-              🏆 Classement saison
-            </button>
+        <div className="flex items-center gap-2 mb-8 flex-wrap">
+          {/* Season selector pills */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {(configured && seasons.length > 0 ? seasons : [{ id: 'mock', name: 'Année 2026', is_active: true, started_at: null, ended_at: null }]).map(s => (
+              <button
+                key={s.id}
+                onClick={() => { setTab('saison'); setSelectedSeasonId(s.id); }}
+                className={`px-3 py-2 rounded-lg text-sm font-medium border transition-all ${
+                  tab === 'saison' && selectedSeasonId === s.id
+                    ? 'bg-cyan/10 border-cyan/30 text-cyan'
+                    : 'border-border-subtle text-text-secondary hover:text-text-primary hover:bg-surface-2'
+                }`}
+              >
+                🏆 {s.name}
+                {s.is_active && <span className="ml-1.5 text-[10px] text-cyan font-semibold uppercase tracking-wide">en cours</span>}
+              </button>
+            ))}
+          </div>
+
+          {/* Separator */}
+          {hasActiveContest && <span className="w-px h-6 bg-border hidden sm:block" />}
+
+          {/* Live contest tab */}
+          {hasActiveContest && activeContest && (
             <button onClick={() => setTab('concours')} className="relative group">
               <span className={`absolute inset-0 rounded-lg ${tab === 'concours' ? 'animate-pulse bg-green-500/10' : 'bg-green-500/0 group-hover:bg-green-500/5'} transition-all`} />
               <span className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
@@ -191,23 +228,23 @@ export default function ClassementPage() {
               }`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
                 📸 Concours du{' '}
-                {activeContest.started_at
-                  ? new Date(activeContest.started_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-                  : '—'}
+                {activeContest.started_at ? new Date(activeContest.started_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—'}
                 {' '}au{' '}
-                {activeContest.ends_at
-                  ? new Date(activeContest.ends_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
-                  : '—'}
+                {activeContest.ends_at ? new Date(activeContest.ends_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—'}
                 {activeContest.status === 'tiebreak' && <span className="text-xs text-amber-400 font-bold">⚡ Égalité</span>}
               </span>
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {loading ? (
           <div className="space-y-4">
             <Skeleton className="h-64 rounded-xl" />
             <Skeleton className="h-96 rounded-xl" />
+          </div>
+        ) : lbLoading ? (
+          <div className="space-y-3">
+            {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
           </div>
         ) : tab === 'concours' && hasActiveContest ? (
           /* Live contest leaderboard */
