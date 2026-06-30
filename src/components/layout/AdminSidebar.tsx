@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useRouter, usePathname } from "next/navigation";
 import {
   LayoutDashboard, Trophy, Settings, History, ExternalLink,
-  Bot, LogOut, ChevronDown, Users, ShieldOff,
+  Bot, LogOut, ChevronDown, Users, ShieldOff, Terminal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/features/auth/hooks";
@@ -21,6 +21,7 @@ const allNavItems: { href: string; label: string; icon: React.ElementType; exact
   { href: "/gestion/discord", label: "Intégration Discord", icon: Bot, slug: "discord" },
   { href: "/gestion/reglages", label: "Réglages", icon: Settings, slug: "reglages" },
   { href: "/gestion/historique", label: "Historique", icon: History, slug: "historique" },
+  { href: "/gestion/logs", label: "Logs bot", icon: Terminal, slug: "logs" },
 ];
 
 const roleLabel: Record<string, string> = {

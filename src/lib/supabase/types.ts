@@ -105,7 +105,7 @@ export interface DbParticipation {
   submitted_at: string
 }
 
-export type TabSlug = 'dashboard' | 'concours' | 'membres' | 'bans' | 'discord' | 'reglages' | 'historique' | 'utilisateurs'
+export type TabSlug = 'dashboard' | 'concours' | 'membres' | 'bans' | 'discord' | 'reglages' | 'historique' | 'logs' | 'utilisateurs'
 
 export const ALL_TABS: { slug: TabSlug; label: string }[] = [
   { slug: 'dashboard', label: 'Dashboard' },
@@ -115,6 +115,7 @@ export const ALL_TABS: { slug: TabSlug; label: string }[] = [
   { slug: 'discord', label: 'Intégration Discord' },
   { slug: 'reglages', label: 'Réglages' },
   { slug: 'historique', label: 'Historique' },
+  { slug: 'logs', label: 'Logs bot' },
 ]
 
 export interface DbUserProfile {
