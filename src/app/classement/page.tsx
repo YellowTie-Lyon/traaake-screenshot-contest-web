@@ -59,7 +59,7 @@ export default function ClassementPage() {
     const activeId = active?.id ?? null;
     setSelectedSeasonId(activeId);
     const [lb, contest, contestLb, participantStats] = await Promise.all([
-      activeId ? getSeasonLeaderboard(activeId) : Promise.resolve([]),
+      getSeasonLeaderboard(activeId ?? undefined),
       env ? getActiveContestPublic(env.id) : Promise.resolve(null),
       env ? getActiveContestLeaderboard(env.id) : Promise.resolve([]),
       getSeasonParticipantStats(),
