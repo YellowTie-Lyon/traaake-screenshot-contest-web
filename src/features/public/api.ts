@@ -94,16 +94,18 @@ export async function getSeasonLeaderboard(seasonId?: string): Promise<Leaderboa
         discord_user_id,
         discord_username,
         discord_display_name,
-        avatar_url
+        avatar_url,
+        win_count,
+        participation_count
       )
     `)
     .eq('season_id', sid)
 
   if (!data) return []
 
-  // Aggregate by participant
+  // Aggregate points by participant; wins/participations come from pre-computed columns
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const map = new Map<string, { p: any; points: number; wins: number; parts: number }>()
+  const map = new Map<string, { p: any; points: number }>()
   for (const row of data) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const p = row.participant as any
@@ -112,55 +114,19 @@ export async function getSeasonLeaderboard(seasonId?: string): Promise<Leaderboa
     if (existing) {
       existing.points += row.points
     } else {
-      map.set(p.id, { p, points: row.points, wins: 0, parts: 0 })
+      map.set(p.id, { p, points: row.points })
     }
   }
 
-  // Get wins: fetch winner participation ids, then look up their participant_id
-  const { data: closedContests } = await supabase
-    .from('contests')
-    .select('winner_participation_id')
-    .eq('season_id', sid)
-    .eq('status', 'closed')
-    .not('winner_participation_id', 'is', null)
-
-  const winnerPartIds = (closedContests ?? [])
-    .map((c: { winner_participation_id: string }) => c.winner_participation_id)
-    .filter(Boolean)
-
-  if (winnerPartIds.length > 0) {
-    const { data: winnerParts } = await supabase
-      .from('participations')
-      .select('participant_id')
-      .in('id', winnerPartIds)
-    for (const row of winnerParts ?? []) {
-      const entry = map.get(row.participant_id)
-      if (entry) entry.wins++
-    }
-  }
-
-  // Get participation counts
-  const participantIds = [...map.keys()]
-  if (participantIds.length > 0) {
-    const { data: partCounts } = await supabase
-      .from('participations')
-      .select('participant_id')
-      .in('participant_id', participantIds)
-    for (const row of partCounts ?? []) {
-      const entry = map.get(row.participant_id)
-      if (entry) entry.parts++
-    }
-  }
-
-  const entries = [...map.values()].map(({ p, points, wins, parts }) => ({
+  const entries = [...map.values()].map(({ p, points }) => ({
     rank: 0,
     discord_user_id: p.discord_user_id ?? p.id,
     discord_username: p.discord_username ?? null,
     discord_display_name: p.discord_display_name ?? null,
     avatar_url: p.avatar_url ?? null,
     total_points: points,
-    participations: parts,
-    wins,
+    participations: p.participation_count ?? 0,
+    wins: p.win_count ?? 0,
   }))
 
   entries.sort((a, b) => b.total_points - a.total_points)
