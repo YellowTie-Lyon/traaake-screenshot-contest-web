@@ -112,7 +112,8 @@ export async function getSeasonLeaderboard(seasonId?: string): Promise<Leaderboa
     discord_username: p.discord_username ?? null,
     discord_display_name: p.discord_display_name ?? null,
     avatar_url: p.avatar_url ?? null,
-    total_points: pointsMap.get(p.id) ?? 0,
+    // Fall back to win_count when no ledger points exist yet (historical data)
+    total_points: pointsMap.get(p.id) ?? (p.win_count ?? 0),
     participations: p.participation_count ?? 0,
     wins: p.win_count ?? 0,
   }))
