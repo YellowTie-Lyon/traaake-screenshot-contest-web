@@ -85,51 +85,44 @@ export async function getSeasonLeaderboard(seasonId?: string): Promise<Leaderboa
   }
   if (!sid) return []
 
-  const { data } = await supabase
+  // Base: all participants with historical win/participation counts
+  const { data: participants } = await supabase
+    .from('participants')
+    .select('id, discord_user_id, discord_username, discord_display_name, avatar_url, win_count, participation_count')
+    .gt('participation_count', 0)
+
+  if (!participants || participants.length === 0) return []
+
+  // Points from ledger for this season (may be empty for historical seasons)
+  const { data: ledger } = await supabase
     .from('points_ledger')
-    .select(`
-      points,
-      participant:participant_id (
-        id,
-        discord_user_id,
-        discord_username,
-        discord_display_name,
-        avatar_url,
-        win_count,
-        participation_count
-      )
-    `)
+    .select('participant_id, points')
     .eq('season_id', sid)
 
-  if (!data) return []
-
-  // Aggregate points by participant; wins/participations come from pre-computed columns
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const map = new Map<string, { p: any; points: number }>()
-  for (const row of data) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const p = row.participant as any
-    if (!p?.id) continue
-    const existing = map.get(p.id)
-    if (existing) {
-      existing.points += row.points
-    } else {
-      map.set(p.id, { p, points: row.points })
-    }
+  // Aggregate ledger points by participant
+  const pointsMap = new Map<string, number>()
+  for (const row of ledger ?? []) {
+    pointsMap.set(row.participant_id, (pointsMap.get(row.participant_id) ?? 0) + row.points)
   }
 
-  const entries = [...map.values()].map(({ p, points }) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const entries: LeaderboardEntry[] = (participants as any[]).map(p => ({
     rank: 0,
     discord_user_id: p.discord_user_id ?? p.id,
     discord_username: p.discord_username ?? null,
     discord_display_name: p.discord_display_name ?? null,
     avatar_url: p.avatar_url ?? null,
-    total_points: points,
+    total_points: pointsMap.get(p.id) ?? 0,
     participations: p.participation_count ?? 0,
     wins: p.win_count ?? 0,
   }))
 
-  entries.sort((a, b) => b.total_points - a.total_points)
+  // Sort: points first, then wins, then participations
+  entries.sort((a, b) =>
+    b.total_points !== a.total_points ? b.total_points - a.total_points :
+    b.wins !== a.wins ? b.wins - a.wins :
+    b.participations - a.participations
+  )
   entries.forEach((e, i) => { e.rank = i + 1 })
   return entries
 }
