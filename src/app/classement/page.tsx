@@ -17,6 +17,8 @@ import {
   getActiveSeason,
   getActiveContestPublic,
   getActiveEnvironment,
+  getSeasonTotalVotes,
+  getSeasonTotalParticipations,
   type LeaderboardEntry,
   type CurrentContestEntry,
 } from "@/features/public/api";
@@ -37,19 +39,25 @@ export default function ClassementPage() {
   const [seasonName, setSeasonName] = useState<string | null>(null);
   const [activeContest, setActiveContest] = useState<{ id: string; total_participations: number; total_votes: number; title: string | null; status: string; ends_at: string | null } | null>(null);
   const [loading, setLoading] = useState(configured);
+  const [seasonTotalParts, setSeasonTotalParts] = useState(0);
+  const [seasonTotalVotes, setSeasonTotalVotes] = useState(0);
 
   const loadData = useCallback(async () => {
     if (!configured) { setLoading(false); return; }
     const [season, env] = await Promise.all([getActiveSeason(), getActiveEnvironment()]);
     setSeasonName(season?.name ?? null);
-    const [lb, contest, contestLb] = await Promise.all([
+    const [lb, contest, contestLb, totalParts, totalVotes] = await Promise.all([
       getSeasonLeaderboard(season?.id),
       env ? getActiveContestPublic(env.id) : Promise.resolve(null),
       env ? getActiveContestLeaderboard(env.id) : Promise.resolve([]),
+      getSeasonTotalParticipations(season?.id),
+      getSeasonTotalVotes(season?.id),
     ]);
     setSeasonEntries(lb);
     setActiveContest(contest);
     setContestEntries(contestLb);
+    setSeasonTotalParts(totalParts);
+    setSeasonTotalVotes(totalVotes);
     setLoading(false);
   }, [configured]);
 
@@ -149,8 +157,8 @@ export default function ClassementPage() {
         <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.1 }} className="grid grid-cols-3 gap-4 mb-8">
           {[
             { label: "Pilotes actifs", value: seasonData.length, icon: Users },
-            { label: "Participations (concours)", value: activeContest?.total_participations ?? 0, icon: TrendingUp },
-            { label: "Votes totaux", value: activeContest?.total_votes ?? 0, icon: Star },
+            { label: "Participations saison", value: seasonTotalParts, icon: TrendingUp },
+            { label: "Votes totaux saison", value: seasonTotalVotes, icon: Star },
           ].map(stat => (
             <Card key={stat.label} className="glass text-center py-4 px-3">
               <div className="flex flex-col items-center gap-1">
