@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Star, Award, TrendingUp, Users, Zap, Heart } from "lucide-react";
+import { Trophy, Star, Award, TrendingUp, Users, Zap, Heart, Search, X } from "lucide-react";
 import Image from "next/image";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -108,10 +108,23 @@ export default function ClassementPage() {
     total_points: m.points, participations: m.participations, wins: m.wins,
   }));
 
+  const [search, setSearch] = useState("");
+
   const seasonData = configured && !loading ? seasonEntries : mockEntries;
-  const top3 = seasonData.slice(0, 3);
-  const rest = seasonData.slice(3);
   const hasActiveContest = !!activeContest;
+
+  const normalize = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const query = normalize(search.trim());
+
+  const filteredSeason = query
+    ? seasonData.filter(m => normalize(m.discord_display_name ?? m.discord_username ?? "").includes(query))
+    : seasonData;
+  const filteredContest = query
+    ? contestEntries.filter(e => normalize(e.discord_display_name ?? e.discord_username ?? "").includes(query))
+    : contestEntries;
+
+  const top3 = filteredSeason.slice(0, 3);
+  const rest = filteredSeason.slice(3);
 
   return (
     <div className="min-h-screen bg-background">
@@ -171,6 +184,30 @@ export default function ClassementPage() {
           </motion.div>
         )}
 
+        {/* Search */}
+        <motion.div {...fadeUp} transition={{ delay: 0.15 }} className="mb-6">
+          <div className="relative max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher un pseudo…"
+              className="w-full pl-9 pr-9 py-2 rounded-lg bg-surface-2 border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-colors"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+          {query && (
+            <p className="mt-2 text-xs text-text-muted">
+              {(tab === 'concours' ? filteredContest : filteredSeason).length} résultat{(tab === 'concours' ? filteredContest : filteredSeason).length !== 1 ? "s" : ""} pour «&nbsp;{search.trim()}&nbsp;»
+            </p>
+          )}
+        </motion.div>
+
         {/* Tabs */}
         {hasActiveContest && (
           <div className="flex gap-2 mb-8">
@@ -199,9 +236,9 @@ export default function ClassementPage() {
                 </span>
               </div>
               <div className="divide-y divide-border">
-                {contestEntries.length === 0 ? (
-                  <p className="text-center py-12 text-sm text-text-muted">Aucune participation pour l'instant.</p>
-                ) : contestEntries.map((entry, idx) => {
+                {filteredContest.length === 0 ? (
+                  <p className="text-center py-12 text-sm text-text-muted">{query ? "Aucun résultat." : "Aucune participation pour l'instant."}</p>
+                ) : filteredContest.map((entry, idx) => {
                   const name = entry.discord_display_name ?? entry.discord_username ?? '?';
                   return (
                     <motion.div key={entry.participation_id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.04 }}
@@ -233,8 +270,8 @@ export default function ClassementPage() {
         ) : (
           /* Season leaderboard */
           <>
-            {/* Podium */}
-            <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.2 }} className="mb-12">
+            {/* Podium — masqué pendant une recherche */}
+            {!query && <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.2 }} className="mb-12">
               <h2 className="text-xl font-semibold text-text-primary mb-6 flex items-center gap-2">
                 <Trophy className="h-5 w-5 text-cyan" /> Podium
               </h2>
@@ -268,7 +305,7 @@ export default function ClassementPage() {
                   );
                 })}
               </div>
-            </motion.div>
+            </motion.div>}
 
             {/* Full table */}
             <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.4 }}>
@@ -288,12 +325,13 @@ export default function ClassementPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {seasonData.length === 0 ? (
-                        <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-text-muted">Aucun participant pour cette saison.</td></tr>
-                      ) : [...top3, ...rest].map((member, idx) => {
+                      {filteredSeason.length === 0 ? (
+                        <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-text-muted">{query ? "Aucun résultat." : "Aucun participant pour cette saison."}</td></tr>
+                      ) : filteredSeason.map((member, idx) => {
                         const name = member.discord_display_name ?? member.discord_username ?? member.discord_user_id.slice(0, 8);
+                        const isMatch = query && normalize(name).includes(query);
                         return (
-                          <motion.tr key={member.discord_user_id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.03 }} className="hover:bg-surface-2/50 transition-colors">
+                          <motion.tr key={member.discord_user_id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.03 }} className={`transition-colors ${isMatch ? "bg-cyan/5 border-l-2 border-l-cyan" : "hover:bg-surface-2/50"}`}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               {member.rank <= 3 ? <span className="text-lg">{rankEmojis[member.rank]}</span> : <span className="text-sm font-medium text-text-muted">#{member.rank}</span>}
                             </td>
