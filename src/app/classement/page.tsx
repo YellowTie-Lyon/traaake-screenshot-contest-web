@@ -155,9 +155,9 @@ export default function ClassementPage() {
         <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.1 }} className="grid grid-cols-3 gap-4 mb-8">
           {(tab === 'concours' && activeContest
             ? [
-                { label: "Participants", value: activeContest.total_participations, icon: Users, accent: true },
+                { label: "Participants", value: contestEntries.length, icon: Users, accent: true },
                 { label: "Votes — screenshot leader", value: contestEntries[0]?.vote_count ?? 0, icon: Heart, accent: true },
-                { label: "Votes totaux concours", value: activeContest.total_votes, icon: Star, accent: true },
+                { label: "Votes totaux concours", value: contestEntries.reduce((s, e) => s + e.vote_count, 0), icon: Star, accent: true },
               ]
             : [
                 { label: "Pilotes actifs", value: seasonData.length, icon: Users, accent: false },
