@@ -73,7 +73,7 @@ export function Header() {
   return (
     <>
       {/* Top banner: social icons left — live notice right */}
-      <div className="w-full bg-[#9146FF]/10 border-b border-[#9146FF]/20 py-1.5 px-4">
+      <div className="w-full bg-cyan/5 border-b border-cyan/20 py-1.5 px-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           {/* Social icons */}
           <div className="flex items-center gap-3">
@@ -92,9 +92,9 @@ export function Header() {
           </div>
 
           {/* Live notice */}
-          <div className="flex items-center gap-1.5 text-xs text-[#bf9aff] whitespace-nowrap">
-            <span className="inline-block w-2 h-2 rounded-full bg-[#9146FF] animate-pulse flex-shrink-0" />
-            <span>En LIVE sur Twitch à partir de <strong className="text-[#c9a6ff]">20h</strong></span>
+          <div className="flex items-center gap-1.5 text-xs text-cyan/80 whitespace-nowrap">
+            <span className="inline-block w-2 h-2 rounded-full bg-cyan animate-pulse flex-shrink-0" />
+            <span>En LIVE sur Twitch à partir de <strong className="text-cyan">20h</strong></span>
           </div>
         </div>
       </div>
