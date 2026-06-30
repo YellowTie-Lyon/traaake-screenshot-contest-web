@@ -178,16 +178,16 @@ export interface Season {
   id: string
   name: string
   is_active: boolean
-  started_at: string | null
-  ended_at: string | null
+  starts_at: string | null
+  ends_at: string | null
 }
 
 export async function getSeasons(): Promise<Season[]> {
   if (!supabase) return []
   const { data } = await supabase
     .from('seasons')
-    .select('id, name, is_active, started_at, ended_at')
-    .order('started_at', { ascending: false })
+    .select('id, name, is_active, starts_at, ends_at')
+    .order('starts_at', { ascending: false })
   return (data ?? []) as Season[]
 }
 
