@@ -36,7 +36,7 @@ export default function ClassementPage() {
   const [seasonEntries, setSeasonEntries] = useState<LeaderboardEntry[]>([]);
   const [contestEntries, setContestEntries] = useState<CurrentContestEntry[]>([]);
   const [seasonName, setSeasonName] = useState<string | null>(null);
-  const [activeContest, setActiveContest] = useState<{ id: string; total_participations: number; total_votes: number; title: string | null; status: string; ends_at: string | null } | null>(null);
+  const [activeContest, setActiveContest] = useState<{ id: string; total_participations: number; total_votes: number; title: string | null; status: string; started_at: string | null; ends_at: string | null } | null>(null);
   const [loading, setLoading] = useState(configured);
   const [seasonTotalParts, setSeasonTotalParts] = useState(0);
   const [uniqueWinners, setUniqueWinners] = useState(0);
@@ -151,16 +151,23 @@ export default function ClassementPage() {
           </p>
         </motion.div>
 
-        {/* Stats */}
+        {/* Stats — changent selon le tab actif */}
         <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.1 }} className="grid grid-cols-3 gap-4 mb-8">
-          {[
-            { label: "Pilotes actifs", value: seasonData.length, icon: Users },
-            { label: "Nombre total de participations", value: seasonTotalParts, icon: TrendingUp },
-            { label: "Nombre de gagnants uniques", value: uniqueWinners, icon: Star },
-          ].map(stat => (
-            <Card key={stat.label} className="glass text-center py-4 px-3">
+          {(tab === 'concours' && activeContest
+            ? [
+                { label: "Participants", value: activeContest.total_participations, icon: Users, accent: true },
+                { label: "Votes — screenshot leader", value: contestEntries[0]?.vote_count ?? 0, icon: Heart, accent: true },
+                { label: "Votes totaux concours", value: activeContest.total_votes, icon: Star, accent: true },
+              ]
+            : [
+                { label: "Pilotes actifs", value: seasonData.length, icon: Users, accent: false },
+                { label: "Nombre total de participations", value: seasonTotalParts, icon: TrendingUp, accent: false },
+                { label: "Nombre de gagnants uniques", value: uniqueWinners, icon: Star, accent: false },
+              ]
+          ).map(stat => (
+            <Card key={stat.label} className={`glass text-center py-4 px-3 transition-all duration-300 ${stat.accent ? 'border-green-700/30' : ''}`}>
               <div className="flex flex-col items-center gap-1">
-                <stat.icon className="h-4 w-4 text-cyan mb-1" />
+                <stat.icon className={`h-4 w-4 mb-1 ${stat.accent ? 'text-green-400' : 'text-cyan'}`} />
                 <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
                 <p className="text-xs text-text-muted">{stat.label}</p>
               </div>
@@ -168,37 +175,32 @@ export default function ClassementPage() {
           ))}
         </motion.div>
 
-        {/* Contest banner */}
-        {configured && !loading && (
-          <motion.div {...fadeUp} transition={{ delay: 0.15 }} className={`mb-8 p-4 rounded-xl border flex items-center justify-between gap-4 ${hasActiveContest ? 'border-green-700/30 bg-green-900/10' : 'border-border-subtle bg-surface-2/50'}`}>
-            <div className="flex items-center gap-3">
-              <span className={`h-2 w-2 rounded-full flex-shrink-0 ${hasActiveContest ? 'bg-green-400 animate-pulse' : 'bg-text-muted'}`} />
-              <span className={`text-sm font-medium ${hasActiveContest ? 'text-green-300' : 'text-text-muted'}`}>
-                {!hasActiveContest
-                  ? 'Aucun concours en cours'
-                  : activeContest!.status === 'tiebreak'
-                    ? '⚡ Égalité — prolongation en cours'
-                    : 'Concours ouvert'
-                }
-              </span>
-            </div>
-            {hasActiveContest && activeContest!.ends_at && (
-              <span className="text-xs text-text-muted flex-shrink-0">
-                Fermeture le {new Date(activeContest!.ends_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} à {new Date(activeContest!.ends_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
-              </span>
-            )}
-          </motion.div>
-        )}
-
         {/* Tabs */}
         {hasActiveContest && (
-          <div className="flex gap-2 mb-8">
-            {(['saison', 'concours'] as Tab[]).map(t => (
-              <button key={t} onClick={() => setTab(t)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${tab === t ? 'bg-cyan/10 border-cyan/30 text-cyan' : 'border-border-subtle text-text-secondary hover:text-text-primary hover:bg-surface-2'}`}>
-                {t === 'saison' ? '🏆 Classement saison' : '📸 Concours en cours'}
-              </button>
-            ))}
+          <div className="flex gap-2 mb-8 flex-wrap">
+            <button onClick={() => setTab('saison')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${tab === 'saison' ? 'bg-cyan/10 border-cyan/30 text-cyan' : 'border-border-subtle text-text-secondary hover:text-text-primary hover:bg-surface-2'}`}>
+              🏆 Classement saison
+            </button>
+            <button onClick={() => setTab('concours')} className="relative group">
+              <span className={`absolute inset-0 rounded-lg ${tab === 'concours' ? 'animate-pulse bg-green-500/10' : 'bg-green-500/0 group-hover:bg-green-500/5'} transition-all`} />
+              <span className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold border transition-all ${
+                tab === 'concours'
+                  ? 'bg-green-900/30 border-green-500/40 text-green-300 shadow-[0_0_12px_rgba(74,222,128,0.15)]'
+                  : 'border-green-700/30 text-green-400/70 hover:text-green-300 hover:border-green-500/40'
+              }`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
+                📸 Concours du{' '}
+                {activeContest.started_at
+                  ? new Date(activeContest.started_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+                  : '—'}
+                {' '}au{' '}
+                {activeContest.ends_at
+                  ? new Date(activeContest.ends_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+                  : '—'}
+                {activeContest.status === 'tiebreak' && <span className="text-xs text-amber-400 font-bold">⚡ Égalité</span>}
+              </span>
+            </button>
           </div>
         )}
 
@@ -294,6 +296,7 @@ export default function ClassementPage() {
               <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
                 <h2 className="text-xl font-semibold text-text-primary flex items-center gap-2">
                   <Award className="h-5 w-5 text-cyan" /> Classement complet
+                  <span className="text-sm font-normal text-text-muted">({seasonData.length} membre{seasonData.length !== 1 ? 's' : ''})</span>
                 </h2>
                 <div className="flex flex-col items-end gap-1">
                   <div className="relative w-56">
