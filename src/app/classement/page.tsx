@@ -192,30 +192,6 @@ export default function ClassementPage() {
           </motion.div>
         )}
 
-        {/* Search */}
-        <motion.div {...fadeUp} transition={{ delay: 0.15 }} className="mb-6">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Rechercher un pseudo…"
-              className="w-full pl-9 pr-9 py-2 rounded-lg bg-surface-2 border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-colors"
-            />
-            {search && (
-              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors">
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-          {query && (
-            <p className="mt-2 text-xs text-text-muted">
-              {(tab === 'concours' ? filteredContest : filteredSeason).length} résultat{(tab === 'concours' ? filteredContest : filteredSeason).length !== 1 ? "s" : ""} pour «&nbsp;{search.trim()}&nbsp;»
-            </p>
-          )}
-        </motion.div>
-
         {/* Tabs */}
         {hasActiveContest && (
           <div className="flex gap-2 mb-8">
@@ -317,9 +293,33 @@ export default function ClassementPage() {
 
             {/* Full table */}
             <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.4 }}>
-              <h2 className="text-xl font-semibold text-text-primary mb-6 flex items-center gap-2">
-                <Award className="h-5 w-5 text-cyan" /> Classement complet
-              </h2>
+              <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+                <h2 className="text-xl font-semibold text-text-primary flex items-center gap-2">
+                  <Award className="h-5 w-5 text-cyan" /> Classement complet
+                </h2>
+                <div className="flex flex-col items-end gap-1">
+                  <div className="relative w-56">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+                    <input
+                      type="text"
+                      value={search}
+                      onChange={e => setSearch(e.target.value)}
+                      placeholder="Rechercher un pseudo…"
+                      className="w-full pl-9 pr-9 py-2 rounded-lg bg-surface-2 border border-border text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan/50 focus:ring-1 focus:ring-cyan/20 transition-colors"
+                    />
+                    {search && (
+                      <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  {query && (
+                    <p className="text-xs text-text-muted">
+                      {filteredSeason.length} résultat{filteredSeason.length !== 1 ? "s" : ""} pour «&nbsp;{search.trim()}&nbsp;»
+                    </p>
+                  )}
+                </div>
+              </div>
               <Card className="glass overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
