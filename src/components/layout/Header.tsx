@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
+import { cn } from "@/lib/utils";
 
 function DiscordIcon({ className }: { className?: string }) {
   return (
@@ -11,42 +13,44 @@ function DiscordIcon({ className }: { className?: string }) {
   );
 }
 
-const navLinks = [
-  { href: "#participer", label: "Participer" },
-  { href: "#classement", label: "Classement" },
-  { href: "#gagnants", label: "Gagnants" },
-];
-
 export function Header() {
-  function scrollTo(e: React.MouseEvent<HTMLAnchorElement>, id: string) {
-    e.preventDefault();
-    document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-  }
+  const pathname = usePathname();
+
+  const navLinks = [
+    { href: "/classement", label: "Classement" },
+    { href: "/gagnants", label: "Derniers Gagnants" },
+  ];
 
   return (
     <header className="sticky top-0 z-50 glass border-b border-border">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          <a href="#hero" onClick={e => scrollTo(e, "hero")} className="flex items-center gap-3 group">
+          {/* Logo */}
+          <Link href="/classement" className="flex items-center gap-3 group">
             <div className="w-9 h-9 rounded-lg overflow-hidden border border-cyan/20 group-hover:border-cyan/50 transition-colors flex-shrink-0">
               <Image src="/logo.png" alt="TraKr logo" width={36} height={36} className="w-full h-full object-cover" />
             </div>
             <span className="text-lg font-bold bg-gradient-to-r from-cyan to-cyan-light bg-clip-text text-transparent">
               TraKr
             </span>
-          </a>
+          </Link>
 
+          {/* Nav + Discord button */}
           <div className="flex items-center gap-3">
             <nav className="hidden sm:flex items-center gap-1">
-              {navLinks.map(link => (
-                <a
+              {navLinks.map((link) => (
+                <Link
                   key={link.href}
                   href={link.href}
-                  onClick={e => scrollTo(e, link.href.slice(1))}
-                  className="px-3 py-2 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary hover:bg-surface-2 transition-colors"
+                  className={cn(
+                    "px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                    pathname === link.href
+                      ? "text-text-primary bg-surface-2"
+                      : "text-text-secondary hover:text-text-primary hover:bg-surface-2"
+                  )}
                 >
                   {link.label}
-                </a>
+                </Link>
               ))}
             </nav>
             <a
@@ -63,21 +67,22 @@ export function Header() {
 
         {/* Mobile nav */}
         <div className="flex sm:hidden gap-1 pb-3">
-          {navLinks.map(link => (
-            <a
+          {navLinks.map((link) => (
+            <Link
               key={link.href}
               href={link.href}
-              onClick={e => scrollTo(e, link.href.slice(1))}
-              className="px-3 py-1.5 rounded-lg text-sm font-medium text-text-secondary hover:text-text-primary transition-colors"
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                pathname === link.href
+                  ? "text-text-primary bg-surface-2"
+                  : "text-text-secondary hover:text-text-primary"
+              )}
             >
               {link.label}
-            </a>
+            </Link>
           ))}
         </div>
       </div>
     </header>
   );
 }
-
-// Keep Link import for potential use
-export { Link };
