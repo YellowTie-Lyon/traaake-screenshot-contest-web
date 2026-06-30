@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
-import { Play, Pause, StopCircle, Loader2, Plus, Trophy, Image as ImageIcon, Heart, Clock, RotateCcw, X, Tag } from "lucide-react";
+import { Play, StopCircle, Loader2, Plus, Trophy, Image as ImageIcon, Heart, Clock, RotateCcw, X, Tag } from "lucide-react";
 import Image from "next/image";
 import { AdminLayout } from "@/components/layout/AdminLayout";
 import { Card } from "@/components/ui/card";
@@ -12,12 +12,11 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { SupabaseBanner } from "@/components/admin/SupabaseBanner";
-import { EnvironmentBadge } from "@/components/admin/EnvironmentBadge";
 import { getEnvironments } from "@/features/environments/api";
-import { getActiveContest, updateContestStatus, openContest, getContestParticipations, type Participation } from "@/features/contests/api";
+import { getActiveContest, updateContestStatus, openContest, generateContestTitle, getContestParticipations, type Participation } from "@/features/contests/api";
 import { isSupabaseConfigured } from "@/lib/supabase/isConfigured";
 import { supabase } from "@/lib/supabase/client";
-import type { DbContest, DbEnvironment, ContestStatus, EnvironmentName } from "@/lib/supabase/types";
+import type { DbContest, DbEnvironment, ContestStatus } from "@/lib/supabase/types";
 
 const STATUS_VARIANTS: Record<ContestStatus, "open" | "paused" | "closed" | "draft" | "archived"> = {
   active: "open",
@@ -79,7 +78,7 @@ function ResetModal({ onConfirm, onClose, resetting }: { onConfirm: () => void; 
           <div className="flex items-start justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-red-400 flex items-center gap-2">
-                <RotateCcw className="w-4 h-4" /> Reset le classement
+                <RotateCcw className="w-4 h-4" /> Réinitialiser le classement
               </h2>
               <p className="text-xs text-text-muted mt-1">
                 Cette action va supprimer <strong className="text-text-primary">toutes les participations, tous les participants et tous les points</strong> de cet environnement, et fermer le concours actif.
@@ -125,7 +124,6 @@ export default function ConcoursPage() {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [opening, setOpening] = useState(false);
-  const [newTitle, setNewTitle] = useState('');
   const [newTheme, setNewTheme] = useState('');
   const [showOpenForm, setShowOpenForm] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -187,14 +185,13 @@ export default function ConcoursPage() {
   }
 
   async function handleOpen() {
-    if (!selectedEnvId || !newTitle.trim()) return;
+    if (!selectedEnvId) return;
     setOpening(true);
     try {
-      const c = await openContest(selectedEnvId, newTitle.trim(), newTheme.trim() || undefined);
+      const c = await openContest(selectedEnvId, generateContestTitle(), newTheme.trim() || undefined);
       setContest(c);
       setParticipations([]);
       setShowOpenForm(false);
-      setNewTitle('');
       setNewTheme('');
       toast.success("Concours ouvert — le bot le détectera via Realtime");
     } catch {
@@ -225,7 +222,6 @@ export default function ConcoursPage() {
     }
   }
 
-  const selectedEnv = environments.find(e => e.id === selectedEnvId);
   const status = contest?.status as ContestStatus | undefined;
 
   return (
@@ -242,31 +238,19 @@ export default function ConcoursPage() {
       <div className="max-w-4xl space-y-6">
         {!configured && <SupabaseBanner />}
 
-        {/* Env selector + reset */}
-        {configured && environments.length > 0 && (
-          <div className="flex items-center gap-3 flex-wrap">
-            <span className="text-sm text-text-muted">Environnement :</span>
-            {environments.map(env => (
-              <button key={env.id} onClick={() => setSelectedEnvId(env.id)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
-                  selectedEnvId === env.id ? 'bg-cyan/10 border-cyan/30 text-cyan' : 'border-border-subtle text-text-secondary hover:text-text-primary hover:bg-surface-2'
-                }`}>
-                <EnvironmentBadge env={env.name as EnvironmentName} />
-                {env.label}
-              </button>
-            ))}
-            <div className="ml-auto">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowResetModal(true)}
-                disabled={!selectedEnvId}
-                className="gap-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 hover:border-red-500/40"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                Reset classement
-              </Button>
-            </div>
+        {/* Reset */}
+        {configured && (
+          <div className="flex justify-end">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowResetModal(true)}
+              disabled={!selectedEnvId}
+              className="gap-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 border border-red-500/20 hover:border-red-500/40"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Réinitialiser le classement
+            </Button>
           </div>
         )}
 
@@ -293,19 +277,13 @@ export default function ConcoursPage() {
                   ) : (
                     <div className="flex flex-col gap-2 max-w-sm mx-auto">
                       <Input
-                        value={newTitle}
-                        onChange={e => setNewTitle(e.target.value)}
-                        placeholder="Titre — ex : Concours Semaine 26"
-                        onKeyDown={e => e.key === 'Enter' && handleOpen()}
-                        autoFocus
-                      />
-                      <Input
                         value={newTheme}
                         onChange={e => setNewTheme(e.target.value)}
                         placeholder="Thème (optionnel) — ex : Golden Hour"
                         onKeyDown={e => e.key === 'Enter' && handleOpen()}
+                        autoFocus
                       />
-                      <Button onClick={handleOpen} disabled={opening || !newTitle.trim()} className="gap-1.5">
+                      <Button onClick={handleOpen} disabled={opening} className="gap-1.5">
                         {opening ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
                         Ouvrir le concours
                       </Button>
@@ -325,7 +303,6 @@ export default function ConcoursPage() {
                         <div className="flex items-center gap-3 flex-wrap mb-1">
                           <h2 className="text-lg font-semibold text-text-primary">{contest.title ?? "Concours sans titre"}</h2>
                           {status && <Badge variant={STATUS_VARIANTS[status]}>{STATUS_LABELS[status]}</Badge>}
-                          {selectedEnv && <EnvironmentBadge env={selectedEnv.name as EnvironmentName} />}
                         </div>
                         <div className="flex gap-4 text-xs text-text-muted flex-wrap">
                           {contest.started_at && <span>Ouvert le {new Date(contest.started_at).toLocaleString("fr-FR")}</span>}
@@ -355,32 +332,18 @@ export default function ConcoursPage() {
 
                     {/* Actions par statut */}
                     <div className="space-y-3">
-                      {status === 'active' && (
+                      {(status === 'active' || status === 'suspended') && (
                         <div className="flex flex-wrap gap-2">
-                          <Button variant="outline" onClick={() => handleStatusChange('suspended')} disabled={updating} className="gap-2">
-                            <Pause className="w-4 h-4 text-amber-400" /> Suspendre
-                          </Button>
                           <Button variant="destructive" onClick={() => handleStatusChange('closed')} disabled={updating} className="gap-2">
                             {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <StopCircle className="w-4 h-4" />}
                             Fermer le concours
                           </Button>
                         </div>
                       )}
-                      {status === 'suspended' && (
-                        <div className="flex flex-wrap gap-2">
-                          <Button onClick={() => handleStatusChange('active')} disabled={updating} className="gap-2">
-                            {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-                            Réouvrir
-                          </Button>
-                          <Button variant="destructive" onClick={() => handleStatusChange('closed')} disabled={updating} className="gap-2">
-                            <StopCircle className="w-4 h-4" /> Fermer
-                          </Button>
-                        </div>
-                      )}
                       {status === 'tiebreak' && (
                         <div className="space-y-2">
                           <p className="text-xs text-amber-400 flex items-center gap-1.5">
-                            <Pause className="w-3.5 h-3.5" /> Égalité détectée — prolongation automatique jusqu'au départage
+                            <Clock className="w-3.5 h-3.5" /> Égalité détectée — prolongation automatique jusqu'au départage
                           </p>
                           <Button variant="destructive" onClick={() => handleStatusChange('closed')} disabled={updating} className="gap-2">
                             {updating ? <Loader2 className="w-4 h-4 animate-spin" /> : <StopCircle className="w-4 h-4" />}

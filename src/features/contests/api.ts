@@ -41,36 +41,48 @@ export async function updateContestStatus(id: string, status: ContestStatus): Pr
 // Returns the ISO string of the next Wednesday at 18:00 Europe/Paris
 function nextWednesdayAt18(): string {
   const now = new Date()
-  // Get current day in Paris time
-  const paris = new Intl.DateTimeFormat('fr-FR', {
-    timeZone: 'Europe/Paris',
-    weekday: 'short', year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit',
-  }).formatToParts(now)
-
-  const dayName = paris.find(p => p.type === 'weekday')?.value ?? ''
-  const isWednesday = dayName.startsWith('mer')
-  const parisHour = parseInt(paris.find(p => p.type === 'hour')?.value ?? '0', 10)
-
-  // Days until next Wednesday (Wednesday = 3 in JS, but we compute via name)
   const jsDay = now.getDay() // 0=Sun, 3=Wed
   let daysUntilWed = (3 - jsDay + 7) % 7
-  if (daysUntilWed === 0 && !(isWednesday && parisHour < 18)) {
-    daysUntilWed = 7 // already past 18h Wednesday → next week
+
+  if (daysUntilWed === 0) {
+    // Today is Wednesday — check if 18:00 Paris has passed
+    const parisHour = parseInt(
+      new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: 'numeric', hour12: false }).format(now),
+      10
+    )
+    if (parisHour >= 18) daysUntilWed = 7
   }
 
   const target = new Date(now)
   target.setDate(target.getDate() + daysUntilWed)
-  // Set to 18:00 Paris — use a UTC offset approximation (CET+1 or CEST+2)
-  // We'll use the Intl API to find the exact UTC equivalent
-  const targetDateStr = `${target.getFullYear()}-${String(target.getMonth() + 1).padStart(2, '0')}-${String(target.getDate()).padStart(2, '0')}`
-  // Try 18:00 Paris = 16:00 or 17:00 UTC depending on DST
-  const candidate = new Date(`${targetDateStr}T16:00:00Z`)
-  const parisCandidateHour = new Intl.DateTimeFormat('fr-FR', {
-    timeZone: 'Europe/Paris', hour: '2-digit',
-  }).formatToParts(candidate).find(p => p.type === 'hour')?.value
-  const offset = parisCandidateHour === '17' ? 1 : 2 // CEST=+2 → 18-2=16UTC, CET=+1 → 18-1=17UTC
-  return new Date(`${targetDateStr}T${String(18 - offset).padStart(2, '0')}:00:00Z`).toISOString()
+
+  const y = target.getFullYear()
+  const m = String(target.getMonth() + 1).padStart(2, '0')
+  const d = String(target.getDate()).padStart(2, '0')
+
+  // Try 16:00 UTC (CEST, UTC+2) and 17:00 UTC (CET, UTC+1)
+  for (const utcHour of [16, 17]) {
+    const candidate = new Date(`${y}-${m}-${d}T${String(utcHour).padStart(2, '0')}:00:00Z`)
+    const parisHour = parseInt(
+      new Intl.DateTimeFormat('fr-FR', { timeZone: 'Europe/Paris', hour: 'numeric', hour12: false }).format(candidate),
+      10
+    )
+    if (parisHour === 18) return candidate.toISOString()
+  }
+
+  return new Date(`${y}-${m}-${d}T16:00:00Z`).toISOString()
+}
+
+function isoWeekNumber(date: Date): number {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
+  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7))
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
+  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
+}
+
+export function generateContestTitle(): string {
+  const now = new Date()
+  return `Concours Semaine ${isoWeekNumber(now)} · ${now.getFullYear()}`
 }
 
 export async function openContest(environmentId: string, title: string, theme?: string): Promise<DbContest> {
