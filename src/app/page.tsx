@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
 import {
@@ -19,7 +19,6 @@ import {
   getActiveContestPublic,
   getActiveEnvironment,
   getRecentWinners,
-  getSeasonTotalVotes,
   type LeaderboardEntry,
   type CurrentContestEntry,
   type WinnerEntry,
@@ -220,99 +219,21 @@ function StreamerSection() {
 
 // ─── Section: Classement ──────────────────────────────────────────────────────
 
-interface ActiveContest {
-  id: string;
-  status: string;
-  total_participations: number;
-  total_votes: number;
-  ends_at: string | null;
-}
-
-function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: React.ReactNode }) {
-  return (
-    <Card className="glass p-4 flex items-center gap-3">
-      <div className="w-9 h-9 rounded-lg bg-cyan/10 border border-cyan/20 flex items-center justify-center flex-shrink-0 text-cyan">
-        {icon}
-      </div>
-      <div className="min-w-0">
-        <p className="text-xs text-text-muted">{label}</p>
-        <p className="text-sm font-bold text-text-primary truncate">{value}</p>
-      </div>
-    </Card>
-  );
-}
-
-function Podium({ entries, nameKey, scoreKey, scoreIcon, scoreUnit }: {
-  entries: (LeaderboardEntry | CurrentContestEntry)[];
-  nameKey: "discord_display_name" | "discord_username";
-  scoreKey: "total_points" | "vote_count";
-  scoreIcon: React.ReactNode;
-  scoreUnit?: string;
-}) {
-  const [first, second, third] = entries;
-  if (!first) return null;
-
-  const PodiumCard = ({ entry, rank }: { entry: LeaderboardEntry | CurrentContestEntry; rank: number }) => {
-    const name = (entry as LeaderboardEntry).discord_display_name ?? (entry as LeaderboardEntry).discord_username ?? "?";
-    const score = scoreKey === "total_points" ? (entry as LeaderboardEntry).total_points : (entry as CurrentContestEntry).vote_count;
-    const avatar = entry.avatar_url;
-    const heights: Record<number, string> = { 1: "h-36", 2: "h-28", 3: "h-24" };
-    const podiumColors: Record<number, string> = { 1: "border-amber-400/40 bg-amber-400/5", 2: "border-slate-400/30 bg-slate-400/5", 3: "border-amber-700/30 bg-amber-700/5" };
-
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        viewport={{ once: true }}
-        transition={{ delay: rank * 0.08 }}
-        className="flex flex-col items-center gap-2 flex-1"
-      >
-        <div className="text-xl">{rankEmojis[rank]}</div>
-        <Avatar className={`border-2 flex-shrink-0 ${rank === 1 ? "h-14 w-14 border-amber-400/50" : "h-11 w-11 border-slate-400/30"}`}>
-          <AvatarImage src={avatar ?? undefined} />
-          <AvatarFallback>{name[0]?.toUpperCase()}</AvatarFallback>
-        </Avatar>
-        <div className="text-center">
-          <p className={`font-semibold text-text-primary truncate max-w-[100px] ${rank === 1 ? "text-sm" : "text-xs"}`}>{name}</p>
-          <div className="flex items-center justify-center gap-1 text-xs font-bold mt-0.5" style={{ color: rankColors[rank] }}>
-            {scoreIcon}
-            {score.toLocaleString()}{scoreUnit}
-          </div>
-        </div>
-        <div className={`w-full ${heights[rank]} rounded-t-xl border ${podiumColors[rank]} flex items-center justify-center`}>
-          <span className="text-2xl font-black opacity-20">{rank}</span>
-        </div>
-      </motion.div>
-    );
-  };
-
-  return (
-    <div className="flex items-end gap-2 sm:gap-3 px-2 mb-2">
-      {second ? <PodiumCard entry={second} rank={2} /> : <div className="flex-1" />}
-      <PodiumCard entry={first} rank={1} />
-      {third ? <PodiumCard entry={third} rank={3} /> : <div className="flex-1" />}
-    </div>
-  );
-}
-
 function ClassementSection() {
   const [tab, setTab] = useState<"saison" | "concours">("saison");
   const [season, setSeason] = useState<LeaderboardEntry[]>([]);
   const [contest, setContest] = useState<CurrentContestEntry[]>([]);
-  const [activeContest, setActiveContest] = useState<ActiveContest | null>(null);
+  const [activeContest, setActiveContest] = useState<{ id: string; status: string; total_participations: number; total_votes: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [envId, setEnvId] = useState("");
-  const [seasonTotalVotes, setSeasonTotalVotes] = useState(0);
 
   const loadData = useCallback(async (eid: string) => {
-    const [s, a, votes] = await Promise.all([
+    const [s, a] = await Promise.all([
       getSeasonLeaderboard(),
       getActiveContestPublic(eid),
-      getSeasonTotalVotes(),
     ]);
     setSeason(s);
-    setActiveContest(a as ActiveContest | null);
-    setSeasonTotalVotes(votes);
+    setActiveContest(a);
     if (a) {
       const c = await getActiveContestLeaderboard(eid);
       setContest(c);
@@ -328,6 +249,7 @@ function ClassementSection() {
     });
   }, [loadData]);
 
+  // Realtime contest updates
   useEffect(() => {
     if (!supabase || !activeContest?.id) return;
     const channel = supabase
@@ -338,16 +260,6 @@ function ClassementSection() {
       .subscribe();
     return () => { supabase?.removeChannel(channel); };
   }, [activeContest?.id, envId]);
-
-  // Season derived stats
-  const seasonTotalParts = season.reduce((s, e) => s + e.participations, 0);
-  const topWinner = season.reduce<LeaderboardEntry | null>((best, e) => (e.wins > (best?.wins ?? 0) ? e : best), null);
-
-  // Contest derived stats
-  const contestLeader = contest[0] ?? null;
-
-  const [top3Season, restSeason] = [season.slice(0, 3), season.slice(3)];
-  const [top3Contest, restContest] = [contest.slice(0, 3), contest.slice(3)];
 
   return (
     <section id="classement" className="py-20 px-4">
@@ -361,7 +273,7 @@ function ClassementSection() {
         <div className="flex items-center gap-1 border-b border-border">
           {([
             { key: "saison" as const, label: "Saison en cours", icon: Star },
-            { key: "concours" as const, label: "Concours en cours", icon: Trophy },
+            { key: "concours" as const, label: activeContest ? `Concours en cours` : "Concours", icon: Trophy },
           ]).map(({ key, label, icon: Icon }) => (
             <button
               key={key}
@@ -382,138 +294,70 @@ function ClassementSection() {
 
         {loading ? (
           <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
-              {[1,2,3].map(i => <Skeleton key={i} className="h-20 rounded-xl" />)}
-            </div>
             {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-16 rounded-xl" />)}
           </div>
         ) : tab === "saison" ? (
-          <div className="space-y-6">
-            {/* Season stats */}
-            {season.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <StatCard
-                  icon={<Users className="w-4 h-4" />}
-                  label="Participations saison"
-                  value={seasonTotalParts.toLocaleString()}
-                />
-                <StatCard
-                  icon={<Trophy className="w-4 h-4" />}
-                  label="Plus de victoires"
-                  value={topWinner && topWinner.wins > 0
-                    ? `${topWinner.discord_display_name ?? topWinner.discord_username} (${topWinner.wins})`
-                    : "—"}
-                />
-                <StatCard
-                  icon={<Heart className="w-4 h-4" />}
-                  label="Votes cumulés saison"
-                  value={seasonTotalVotes.toLocaleString()}
-                />
-              </div>
-            )}
-
-            {/* Podium */}
+          <div className="space-y-2">
             {season.length === 0 ? (
               <Card className="glass p-10 text-center"><p className="text-text-muted text-sm">Aucune donnée pour cette saison.</p></Card>
-            ) : (
-              <>
-                <Podium
-                  entries={top3Season}
-                  nameKey="discord_display_name"
-                  scoreKey="total_points"
-                  scoreIcon={<Star className="w-3 h-3" />}
-                  scoreUnit=" pts"
-                />
-                {/* Rest */}
-                <div className="space-y-2">
-                  {restSeason.map((m, i) => (
-                    <motion.div key={m.discord_user_id} initial={{ opacity: 0, x: -8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.03 }}>
-                      <Card className="glass flex items-center gap-4 px-5 py-3">
-                        <span className="w-8 text-center font-bold text-sm text-text-muted flex-shrink-0">{m.rank}</span>
-                        <Avatar className="h-8 w-8 flex-shrink-0">
-                          <AvatarImage src={m.avatar_url ?? undefined} />
-                          <AvatarFallback>{(m.discord_display_name ?? m.discord_username ?? "?")[0]?.toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-text-primary truncate">{m.discord_display_name ?? m.discord_username}</p>
-                          <p className="text-xs text-text-muted">{m.participations} part. · {m.wins} victoire{m.wins !== 1 ? "s" : ""}</p>
-                        </div>
-                        <div className="flex items-center gap-1 text-amber-400 font-bold text-sm flex-shrink-0">
-                          <Star className="w-3.5 h-3.5" />
-                          {m.total_points.toLocaleString()}
-                        </div>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
-              </>
-            )}
+            ) : season.map((m, i) => (
+              <motion.div key={m.discord_user_id} initial={{ opacity: 0, x: -8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.04 }}>
+                <Card className={`glass flex items-center gap-4 px-5 py-3.5 ${m.rank <= 3 ? "border-amber-400/20 bg-amber-400/5" : ""}`}>
+                  <span className="w-8 text-center font-bold text-sm flex-shrink-0" style={{ color: rankColors[m.rank] ?? "#6b7280" }}>
+                    {rankEmojis[m.rank] ?? m.rank}
+                  </span>
+                  <Avatar className="h-9 w-9 flex-shrink-0">
+                    <AvatarImage src={m.avatar_url ?? undefined} />
+                    <AvatarFallback>{(m.discord_display_name ?? m.discord_username ?? "?")[0]?.toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-text-primary truncate">{m.discord_display_name ?? m.discord_username}</p>
+                    <p className="text-xs text-text-muted">{m.participations} part. · {m.wins} victoire{m.wins !== 1 ? "s" : ""}</p>
+                  </div>
+                  <div className="flex items-center gap-1 text-amber-400 font-bold text-sm flex-shrink-0">
+                    <Star className="w-3.5 h-3.5" />
+                    {m.total_points.toLocaleString()}
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
           </div>
         ) : (
-          <div className="space-y-6">
-            {/* Contest stats */}
+          <div className="space-y-2">
             {activeContest && (
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <StatCard
-                  icon={<Users className="w-4 h-4" />}
-                  label="Participations"
-                  value={activeContest.total_participations.toLocaleString()}
-                />
-                <StatCard
-                  icon={<Heart className="w-4 h-4" />}
-                  label="Votes au total"
-                  value={activeContest.total_votes.toLocaleString()}
-                />
-                <StatCard
-                  icon={<Trophy className="w-4 h-4" />}
-                  label="Leader actuel"
-                  value={contestLeader
-                    ? `${contestLeader.discord_display_name ?? contestLeader.discord_username ?? "?"} · ${contestLeader.vote_count} ❤️`
-                    : "—"}
-                />
+              <div className="flex items-center gap-4 text-xs text-text-muted mb-4">
+                <span className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> {activeContest.total_participations} participations</span>
+                <span className="flex items-center gap-1.5"><Heart className="w-3.5 h-3.5 text-red-400" /> {activeContest.total_votes} votes</span>
               </div>
             )}
-
-            {/* Podium */}
             {contest.length === 0 ? (
               <Card className="glass p-10 text-center"><p className="text-text-muted text-sm">Aucune participation pour l'instant.</p></Card>
-            ) : (
-              <>
-                <Podium
-                  entries={top3Contest}
-                  nameKey="discord_display_name"
-                  scoreKey="vote_count"
-                  scoreIcon={<Heart className="w-3 h-3" />}
-                />
-                {/* Rest */}
-                <div className="space-y-2">
-                  {restContest.map((m, i) => (
-                    <motion.div key={m.participation_id} initial={{ opacity: 0, x: -8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.03 }}>
-                      <Card className="glass flex items-center gap-4 px-5 py-3">
-                        <span className="w-8 text-center font-bold text-sm text-text-muted flex-shrink-0">{m.rank}</span>
-                        <Avatar className="h-8 w-8 flex-shrink-0">
-                          <AvatarImage src={m.avatar_url ?? undefined} />
-                          <AvatarFallback>{(m.discord_display_name ?? m.discord_username ?? "?")[0]?.toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-text-primary truncate">{m.discord_display_name ?? m.discord_username}</p>
-                          {m.image_url && <p className="text-xs text-text-muted">Screenshot soumis</p>}
-                        </div>
-                        {m.image_url && (
-                          <div className="w-12 h-8 rounded overflow-hidden flex-shrink-0 border border-border">
-                            <Image src={m.image_url} alt="screenshot" width={48} height={32} className="w-full h-full object-cover" />
-                          </div>
-                        )}
-                        <div className="flex items-center gap-1 text-red-400 font-bold text-sm flex-shrink-0">
-                          <Heart className="w-3.5 h-3.5" />
-                          {m.vote_count}
-                        </div>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
-              </>
-            )}
+            ) : contest.map((m, i) => (
+              <motion.div key={m.participation_id} initial={{ opacity: 0, x: -8 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.04 }}>
+                <Card className={`glass flex items-center gap-4 px-5 py-3.5 ${m.rank <= 3 ? "border-amber-400/20 bg-amber-400/5" : ""}`}>
+                  <span className="w-8 text-center font-bold text-sm flex-shrink-0" style={{ color: rankColors[m.rank] ?? "#6b7280" }}>
+                    {rankEmojis[m.rank] ?? m.rank}
+                  </span>
+                  <Avatar className="h-9 w-9 flex-shrink-0">
+                    <AvatarImage src={m.avatar_url ?? undefined} />
+                    <AvatarFallback>{(m.discord_display_name ?? m.discord_username ?? "?")[0]?.toUpperCase()}</AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-text-primary truncate">{m.discord_display_name ?? m.discord_username}</p>
+                    {m.image_url && <p className="text-xs text-text-muted">Screenshot soumis</p>}
+                  </div>
+                  {m.image_url && (
+                    <div className="w-12 h-8 rounded overflow-hidden flex-shrink-0 border border-border">
+                      <Image src={m.image_url} alt="screenshot" width={48} height={32} className="w-full h-full object-cover" />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-1 text-red-400 font-bold text-sm flex-shrink-0">
+                    <Heart className="w-3.5 h-3.5" />
+                    {m.vote_count}
+                  </div>
+                </Card>
+              </motion.div>
+            ))}
           </div>
         )}
       </div>

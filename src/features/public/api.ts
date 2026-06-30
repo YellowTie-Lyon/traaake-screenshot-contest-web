@@ -237,29 +237,6 @@ export async function getActiveContestPublic(environmentId?: string) {
   return data ?? null
 }
 
-export async function getSeasonTotalVotes(seasonId?: string): Promise<number> {
-  if (!supabase) return 0
-  let sid = seasonId
-  if (!sid) {
-    const { data: season } = await supabase
-      .from('seasons')
-      .select('id')
-      .eq('is_active', true)
-      .single()
-    sid = season?.id
-  }
-  if (!sid) return 0
-
-  const { data } = await supabase
-    .from('participations')
-    .select('vote_count, contest:contest_id!inner(season_id)')
-    .eq('contest.season_id', sid)
-
-  if (!data) return 0
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data as any[]).reduce((sum, r) => sum + (r.vote_count ?? 0), 0)
-}
-
 export async function getActiveEnvironment() {
   if (!supabase) return null
   const { data } = await supabase
