@@ -13,6 +13,14 @@ function DiscordIcon({ className }: { className?: string }) {
   );
 }
 
+function TwitchIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z" />
+    </svg>
+  );
+}
+
 export function Header() {
   const pathname = usePathname();
 
@@ -22,67 +30,102 @@ export function Header() {
   ];
 
   return (
-    <header className="sticky top-0 z-50 glass border-b border-border">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/classement" className="flex items-center gap-3 group">
-            <div className="w-9 h-9 rounded-lg overflow-hidden border border-cyan/20 group-hover:border-cyan/50 transition-colors flex-shrink-0">
-              <Image src="/logo.png" alt="TraKr logo" width={36} height={36} className="w-full h-full object-cover" />
-            </div>
-            <span className="text-lg font-bold bg-gradient-to-r from-cyan to-cyan-light bg-clip-text text-transparent">
-              TraKr
-            </span>
-          </Link>
+    <>
+      {/* Live banner */}
+      <div className="w-full bg-[#9146FF]/10 border-b border-[#9146FF]/20 py-1.5 px-4 text-center text-xs text-[#bf9aff] flex items-center justify-center gap-2">
+        <span className="inline-block w-2 h-2 rounded-full bg-[#9146FF] animate-pulse flex-shrink-0" />
+        En live le soir sur Twitch à partir de&nbsp;<strong className="text-[#c9a6ff]">20h</strong>
+        &nbsp;—&nbsp;
+        <a
+          href="https://twitch.tv/traaake"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline underline-offset-2 hover:text-[#d4baff] transition-colors"
+        >
+          twitch.tv/traaake
+        </a>
+      </div>
 
-          {/* Nav + Discord button */}
-          <div className="flex items-center gap-3">
-            <nav className="hidden sm:flex items-center gap-1">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  className={cn(
-                    "px-3 py-2 rounded-lg text-sm font-medium transition-colors",
-                    pathname === link.href
-                      ? "text-text-primary bg-surface-2"
-                      : "text-text-secondary hover:text-text-primary hover:bg-surface-2"
-                  )}
-                >
-                  {link.label}
-                </Link>
-              ))}
-            </nav>
-            <a
-              href="https://discord.gg/Qc459c4Pzr"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-[#5865F2]/10 border border-[#5865F2]/30 text-[#5865F2] hover:bg-[#5865F2]/20 transition-colors"
-            >
-              <DiscordIcon className="w-4 h-4" />
-              <span className="hidden sm:inline">Rejoindre le Discord</span>
-            </a>
+      <header className="sticky top-0 z-50 glass border-b border-border">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo + branding */}
+            <Link href="/classement" className="flex items-center gap-3 group">
+              <div className="w-9 h-9 rounded-lg overflow-hidden border border-cyan/20 group-hover:border-cyan/50 transition-colors flex-shrink-0">
+                <Image src="/logo.png" alt="TraaaKe logo" width={36} height={36} className="w-full h-full object-cover" />
+              </div>
+              <div className="flex flex-col leading-none">
+                <span className="text-lg font-bold bg-gradient-to-r from-cyan to-cyan-light bg-clip-text text-transparent">
+                  TraaaKe
+                </span>
+                <span className="text-[10px] text-text-secondary font-medium tracking-wide hidden sm:block">
+                  Créateur MSFS depuis 2022
+                </span>
+              </div>
+            </Link>
+
+            {/* Nav + buttons */}
+            <div className="flex items-center gap-2">
+              <nav className="hidden sm:flex items-center gap-1">
+                {navLinks.map((link) => (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    className={cn(
+                      "px-3 py-2 rounded-lg text-sm font-medium transition-colors",
+                      pathname === link.href
+                        ? "text-text-primary bg-surface-2"
+                        : "text-text-secondary hover:text-text-primary hover:bg-surface-2"
+                    )}
+                  >
+                    {link.label}
+                  </Link>
+                ))}
+              </nav>
+
+              {/* Twitch button */}
+              <a
+                href="https://twitch.tv/traaake"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-[#9146FF]/10 border border-[#9146FF]/30 text-[#bf9aff] hover:bg-[#9146FF]/20 transition-colors"
+              >
+                <TwitchIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Me regarder en direct</span>
+              </a>
+
+              {/* Discord button */}
+              <a
+                href="https://discord.gg/Qc459c4Pzr"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-[#5865F2]/10 border border-[#5865F2]/30 text-[#5865F2] hover:bg-[#5865F2]/20 transition-colors"
+              >
+                <DiscordIcon className="w-4 h-4" />
+                <span className="hidden sm:inline">Rejoindre le Discord</span>
+              </a>
+            </div>
+          </div>
+
+          {/* Mobile nav */}
+          <div className="flex sm:hidden gap-1 pb-3">
+            {navLinks.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                  pathname === link.href
+                    ? "text-text-primary bg-surface-2"
+                    : "text-text-secondary hover:text-text-primary"
+                )}
+              >
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
-
-        {/* Mobile nav */}
-        <div className="flex sm:hidden gap-1 pb-3">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
-                pathname === link.href
-                  ? "text-text-primary bg-surface-2"
-                  : "text-text-secondary hover:text-text-primary"
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </div>
-      </div>
-    </header>
+      </header>
+    </>
   );
 }
