@@ -112,7 +112,7 @@ export function Header() {
                   TraaaKe
                 </span>
                 <span className="text-[10px] text-text-secondary font-medium tracking-wide hidden sm:block">
-                  Créateur MSFS depuis 2022
+                  Créateur de contenu sur MSFS depuis 2022
                 </span>
               </div>
             </Link>
