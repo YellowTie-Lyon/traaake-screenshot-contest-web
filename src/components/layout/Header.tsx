@@ -144,7 +144,7 @@ export function Header() {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-[#9146FF]/10 border border-[#9146FF]/30 text-[#bf9aff] hover:bg-[#9146FF]/20 transition-colors"
               >
                 <TwitchIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">Regarder en direct sur Twitch</span>
+                <span className="hidden sm:inline">En direct sur Twitch</span>
               </a>
 
               {/* Discord button */}
