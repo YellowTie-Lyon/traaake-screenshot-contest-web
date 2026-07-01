@@ -154,35 +154,7 @@ export async function getSeasonLeaderboard(seasonId?: string): Promise<Leaderboa
   return entries
 }
 
-export async function getRecentWinners(environmentId: string, limit = 10): Promise<WinnerEntry[]> {
-  if (!supabase) return []
-
-  const { data } = await supabase
-    .from('contests')
-    .select(`
-      id,
-      title,
-      started_at,
-      closed_at,
-      winner_participation:winner_participation_id (
-        id,
-        image_url,
-        vote_count,
-        participant:participant_id (
-          discord_display_name,
-          discord_username,
-          avatar_url
-        )
-      )
-    `)
-    .eq('status', 'closed')
-    .eq('environment_id', environmentId)
-    .not('winner_participation_id', 'is', null)
-    .order('closed_at', { ascending: false })
-    .limit(limit)
-
-  if (!data) return []
-
+function mapWinners(data: unknown[]): WinnerEntry[] {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data as any[]).map(c => {
     const wp = c.winner_participation
@@ -198,6 +170,49 @@ export async function getRecentWinners(environmentId: string, limit = 10): Promi
       vote_count: wp?.vote_count ?? 0,
     }
   })
+}
+
+const WINNERS_SELECT = `
+  id,
+  title,
+  started_at,
+  closed_at,
+  winner_participation:winner_participation_id (
+    id,
+    image_url,
+    vote_count,
+    participant:participant_id (
+      discord_display_name,
+      discord_username,
+      avatar_url
+    )
+  )
+`
+
+export async function getRecentWinners(environmentId: string, limit = 10): Promise<WinnerEntry[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('contests')
+    .select(WINNERS_SELECT)
+    .eq('status', 'closed')
+    .eq('environment_id', environmentId)
+    .not('winner_participation_id', 'is', null)
+    .order('closed_at', { ascending: false })
+    .limit(limit)
+  return data ? mapWinners(data) : []
+}
+
+export async function getWinnersBySeason(environmentId: string, seasonId: string): Promise<WinnerEntry[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('contests')
+    .select(WINNERS_SELECT)
+    .eq('status', 'closed')
+    .eq('environment_id', environmentId)
+    .eq('season_id', seasonId)
+    .not('winner_participation_id', 'is', null)
+    .order('closed_at', { ascending: false })
+  return data ? mapWinners(data) : []
 }
 
 export interface Season {
