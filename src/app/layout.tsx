@@ -4,9 +4,25 @@ import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://traaake.fr"),
   title: "TraaaKe — Créateur de contenu Microsoft Flight Simulator",
   description: "Classement, gagnants et concours screenshot hebdomadaire de TraaaKe, créateur de contenu sur Microsoft Flight Simulator.",
   icons: { icon: "/logo.png" },
+  openGraph: {
+    type: "website",
+    url: "https://traaake.fr",
+    siteName: "TraaaKe",
+    title: "TraaaKe — Créateur de contenu Microsoft Flight Simulator",
+    description: "Classement, gagnants et concours screenshot hebdomadaire de TraaaKe, créateur de contenu sur Microsoft Flight Simulator.",
+    images: [{ url: "/logo.png", width: 512, height: 512, alt: "TraaaKe" }],
+    locale: "fr_FR",
+  },
+  twitter: {
+    card: "summary",
+    title: "TraaaKe — Créateur de contenu Microsoft Flight Simulator",
+    description: "Classement, gagnants et concours screenshot hebdomadaire de TraaaKe, créateur de contenu sur Microsoft Flight Simulator.",
+    images: ["/logo.png"],
+  },
 };
 
 export default function RootLayout({
