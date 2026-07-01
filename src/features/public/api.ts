@@ -255,15 +255,33 @@ export async function getActiveContestPublic(environmentId?: string) {
   return data ?? null
 }
 
-export async function getSeasonParticipantStats(): Promise<{ totalParticipations: number; uniqueWinners: number }> {
-  if (!supabase) return { totalParticipations: 0, uniqueWinners: 0 }
+export async function getSeasonStats(seasonId: string): Promise<{ activePilots: number; totalParticipations: number; uniqueWinners: number }> {
+  if (!supabase) return { activePilots: 0, totalParticipations: 0, uniqueWinners: 0 }
+
+  const { data: contestIds } = await supabase
+    .from('contests')
+    .select('id')
+    .eq('season_id', seasonId)
+    .eq('status', 'closed')
+
+  const ids = (contestIds ?? []).map(c => c.id)
+  if (ids.length === 0) return { activePilots: 0, totalParticipations: 0, uniqueWinners: 0 }
+
   const { data } = await supabase
-    .from('participants')
-    .select('participation_count, win_count')
-  if (!data) return { totalParticipations: 0, uniqueWinners: 0 }
+    .from('participations')
+    .select('participant_id, is_winner')
+    .in('contest_id', ids)
+    .eq('is_valid', true)
+
+  if (!data) return { activePilots: 0, totalParticipations: 0, uniqueWinners: 0 }
+
+  const pilots = new Set(data.map(r => r.participant_id))
+  const winners = new Set(data.filter(r => r.is_winner).map(r => r.participant_id))
+
   return {
-    totalParticipations: data.reduce((s, r) => s + (r.participation_count ?? 0), 0),
-    uniqueWinners: data.filter(r => (r.win_count ?? 0) > 0).length,
+    activePilots: pilots.size,
+    totalParticipations: data.length,
+    uniqueWinners: winners.size,
   }
 }
 

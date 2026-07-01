@@ -17,7 +17,7 @@ import {
   getSeasons,
   getActiveContestPublic,
   getActiveEnvironment,
-  getSeasonParticipantStats,
+  getSeasonStats,
   type LeaderboardEntry,
   type CurrentContestEntry,
   type Season,
@@ -41,16 +41,19 @@ export default function ClassementPage() {
   const [activeContest, setActiveContest] = useState<{ id: string; title: string | null; status: string; started_at: string | null; ends_at: string | null } | null>(null);
   const [loading, setLoading] = useState(configured);
   const [lbLoading, setLbLoading] = useState(false);
-  const [seasonTotalParts, setSeasonTotalParts] = useState(0);
-  const [uniqueWinners, setUniqueWinners] = useState(0);
+  const [seasonStats, setSeasonStats] = useState({ activePilots: 0, totalParticipations: 0, uniqueWinners: 0 });
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 30;
 
-  const loadLeaderboard = useCallback(async (seasonId: string) => {
+  const loadSeasonData = useCallback(async (seasonId: string) => {
     setLbLoading(true);
-    const lb = await getSeasonLeaderboard(seasonId);
+    const [lb, stats] = await Promise.all([
+      getSeasonLeaderboard(seasonId),
+      getSeasonStats(seasonId),
+    ]);
     setSeasonEntries(lb);
+    setSeasonStats(stats);
     setLbLoading(false);
   }, []);
 
@@ -61,25 +64,24 @@ export default function ClassementPage() {
     const active = allSeasons.find(s => s.is_active) ?? allSeasons[0] ?? null;
     const activeId = active?.id ?? null;
     setSelectedSeasonId(activeId);
-    const [lb, contest, contestLb, participantStats] = await Promise.all([
+    const [lb, contest, contestLb, stats] = await Promise.all([
       getSeasonLeaderboard(activeId ?? undefined),
       env ? getActiveContestPublic(env.id) : Promise.resolve(null),
       env ? getActiveContestLeaderboard(env.id) : Promise.resolve([]),
-      getSeasonParticipantStats(),
+      activeId ? getSeasonStats(activeId) : Promise.resolve({ activePilots: 0, totalParticipations: 0, uniqueWinners: 0 }),
     ]);
     setSeasonEntries(lb);
     setActiveContest(contest);
     setContestEntries(contestLb);
-    setSeasonTotalParts(participantStats.totalParticipations);
-    setUniqueWinners(participantStats.uniqueWinners);
+    setSeasonStats(stats);
     setLoading(false);
   }, [configured]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  // Reload leaderboard when user switches season
+  // Reload leaderboard + stats when user switches season
   useEffect(() => {
-    if (selectedSeasonId && !loading) { setPage(0); loadLeaderboard(selectedSeasonId); }
+    if (selectedSeasonId && !loading) { setPage(0); loadSeasonData(selectedSeasonId); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSeasonId]);
 
@@ -183,9 +185,9 @@ export default function ClassementPage() {
                 { label: "Votes totaux concours", value: contestEntries.reduce((s, e) => s + e.vote_count, 0), icon: Star, accent: true },
               ]
             : [
-                { label: "Pilotes actifs", value: seasonData.length, icon: Users, accent: false },
-                { label: "Nombre total de participations", value: seasonTotalParts, icon: TrendingUp, accent: false },
-                { label: "Nombre de gagnants uniques", value: uniqueWinners, icon: Star, accent: false },
+                { label: "Pilotes actifs", value: seasonStats.activePilots, icon: Users, accent: false },
+                { label: "Participations", value: seasonStats.totalParticipations, icon: TrendingUp, accent: false },
+                { label: "Gagnants uniques", value: seasonStats.uniqueWinners, icon: Star, accent: false },
               ]
           ).map(stat => (
             <Card key={stat.label} className={`glass text-center py-4 px-3 transition-all duration-300 ${stat.accent ? 'border-green-700/30' : ''}`}>
