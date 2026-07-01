@@ -200,6 +200,15 @@ export default function ClassementPage() {
           ))}
         </motion.div>
 
+        {/* Points system */}
+        <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.15 }} className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mb-6 px-4 py-3 rounded-xl bg-surface-2/50 border border-border-subtle text-xs text-text-muted">
+          <span className="font-semibold text-text-secondary uppercase tracking-wide text-[10px]">Système de points</span>
+          <span>🥇 1ère place <span className="text-text-primary font-medium">+100 pts</span></span>
+          <span>🥈 2ème place <span className="text-text-primary font-medium">+60 pts</span></span>
+          <span>🥉 3ème place <span className="text-text-primary font-medium">+30 pts</span></span>
+          <span>📸 Participation <span className="text-text-primary font-medium">+20 pts</span></span>
+        </motion.div>
+
         {/* Tabs */}
         <div className="flex items-center gap-2 mb-8 flex-wrap">
           {/* Season selector pills */}
