@@ -92,10 +92,10 @@ export default function ClassementPage() {
   useEffect(() => {
     if (!activeContest?.id || !supabase) return;
 
-    const refreshLeaderboard = () =>
-      getActiveEnvironment().then(env => {
-        if (env) getActiveContestLeaderboard(env.id).then(setContestEntries);
-      });
+    const refreshLeaderboard = () => {
+      const env = getActiveEnvironment();
+      if (env) getActiveContestLeaderboard(env.id).then(setContestEntries);
+    };
 
     const channel = supabase
       .channel(`contest-live-${activeContest.id}`)

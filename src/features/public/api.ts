@@ -290,12 +290,8 @@ export async function getSeasonStats(seasonId: string): Promise<{ activePilots: 
 }
 
 
-export async function getActiveEnvironment() {
-  if (!supabase) return null
-  const { data } = await supabase
-    .from('environments')
-    .select('id, name, label')
-    .eq('is_active', true)
-    .single()
-  return data ?? null
+export function getActiveEnvironment(): { id: string; name: string; label: string } | null {
+  const id = process.env.NEXT_PUBLIC_ENVIRONMENT_ID
+  if (!id) return null
+  return { id, name: 'Production', label: 'Production' }
 }
