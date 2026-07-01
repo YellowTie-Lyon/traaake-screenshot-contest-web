@@ -9,6 +9,7 @@ export interface LeaderboardEntry {
   total_points: number
   participations: number
   wins: number
+  total_votes?: number
 }
 
 export interface CurrentContestEntry {
@@ -105,6 +106,7 @@ export async function getSeasonLeaderboard(seasonId?: string): Promise<Leaderboa
       participant_id,
       final_rank,
       is_winner,
+      vote_count,
       participant:participant_id (
         discord_user_id,
         discord_username,
@@ -118,15 +120,16 @@ export async function getSeasonLeaderboard(seasonId?: string): Promise<Leaderboa
   if (!parts || parts.length === 0) return []
 
   // Aggregate points per participant
-  const agg = new Map<string, { points: number; wins: number; participations: number; meta: unknown }>()
+  const agg = new Map<string, { points: number; wins: number; participations: number; totalVotes: number; meta: unknown }>()
   for (const row of parts as any[]) {
     const pid = row.participant_id
-    const cur = agg.get(pid) ?? { points: 0, wins: 0, participations: 0, meta: row.participant }
+    const cur = agg.get(pid) ?? { points: 0, wins: 0, participations: 0, totalVotes: 0, meta: row.participant }
     const pts = row.final_rank != null ? (POINTS[row.final_rank] ?? PARTICIPATION_POINTS) : PARTICIPATION_POINTS
     agg.set(pid, {
       points: cur.points + pts,
       wins: cur.wins + (row.is_winner ? 1 : 0),
       participations: cur.participations + 1,
+      totalVotes: cur.totalVotes + (row.vote_count ?? 0),
       meta: cur.meta ?? row.participant,
     })
   }
@@ -142,13 +145,15 @@ export async function getSeasonLeaderboard(seasonId?: string): Promise<Leaderboa
       total_points: d.points,
       participations: d.participations,
       wins: d.wins,
+      total_votes: d.totalVotes,
     }
   })
 
+  // Sort: points → wins → total_votes (tiebreaker)
   entries.sort((a, b) =>
     b.total_points !== a.total_points ? b.total_points - a.total_points :
     b.wins !== a.wins ? b.wins - a.wins :
-    b.participations - a.participations
+    (b.total_votes ?? 0) - (a.total_votes ?? 0)
   )
   entries.forEach((e, i) => { e.rank = i + 1 })
   return entries

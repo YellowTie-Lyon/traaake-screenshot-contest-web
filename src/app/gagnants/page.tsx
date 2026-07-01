@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import { ThumbsUp, Crown, Trophy } from "lucide-react";
+import { ThumbsUp, Crown, Trophy, Search } from "lucide-react";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import { Card, CardContent } from "@/components/ui/card";
@@ -39,6 +39,7 @@ export default function GagnantsPage() {
   const [winners, setWinners] = useState<WinnerEntry[]>([]);
   const [loading, setLoading] = useState(configured);
   const [seasonLoading, setSeasonLoading] = useState(false);
+  const [search, setSearch] = useState("");
 
   const loadWinners = useCallback(async (eid: string, sid: string) => {
     setSeasonLoading(true);
@@ -70,7 +71,12 @@ export default function GagnantsPage() {
   };
 
   const selectedSeason = seasons.find(s => s.id === selectedSeasonId);
-  const [latest, ...rest] = winners;
+
+  const normalize = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  const filteredWinners = search.trim()
+    ? winners.filter(w => normalize(w.winner_name ?? '').includes(normalize(search.trim())))
+    : winners;
+  const [latest, ...rest] = filteredWinners;
 
   if (loading) {
     return (
@@ -125,6 +131,20 @@ export default function GagnantsPage() {
           </motion.div>
         )}
 
+        {/* Search bar */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.15 }} className="flex justify-center mb-8">
+          <div className="relative w-full max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-text-muted pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Rechercher par pseudo…"
+              className="w-full pl-9 pr-4 py-2 rounded-lg bg-surface-2 border border-border-subtle text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-cyan/40 transition-colors"
+            />
+          </div>
+        </motion.div>
+
         {/* Loading season */}
         {seasonLoading && (
           <div className="space-y-6">
@@ -136,11 +156,17 @@ export default function GagnantsPage() {
         )}
 
         {/* No data */}
-        {!seasonLoading && winners.length === 0 && (
+        {!seasonLoading && filteredWinners.length === 0 && (
           <div className="text-center py-16">
             <Trophy className="w-12 h-12 text-text-muted mx-auto mb-4" />
-            <p className="text-text-muted mb-2">Aucun gagnant pour {selectedSeason?.name ?? 'cette année'}.</p>
-            <p className="text-xs text-text-muted">Les résultats apparaîtront ici après la clôture du premier concours.</p>
+            {search.trim() ? (
+              <p className="text-text-muted mb-2">Aucun résultat pour &quot;{search}&quot;.</p>
+            ) : (
+              <>
+                <p className="text-text-muted mb-2">Aucun gagnant pour {selectedSeason?.name ?? 'cette année'}.</p>
+                <p className="text-xs text-text-muted">Les résultats apparaîtront ici après la clôture du premier concours.</p>
+              </>
+            )}
           </div>
         )}
 
