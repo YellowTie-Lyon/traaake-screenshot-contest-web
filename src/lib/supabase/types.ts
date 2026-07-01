@@ -25,18 +25,30 @@ export interface DbContestSettings {
   photographer_role_id: string | null
   announcement_message: string | null
   allowed_reaction: string
+  // Points
   points_1st: number
   points_2nd: number
   points_3rd: number
-  // Legacy fields (kept for compatibility)
+  participation_points: number
+  // Schedules
   auto_mode_enabled: boolean
   open_day: string
   open_time: string
   close_day: string
   close_time: string
   timezone: string
+  // Reminders
+  reminder_day: number
+  reminder_hour: number
+  reminder_message: string | null
+  // Tiebreak & closing
+  tiebreak_duration_hours: number
+  warning_minutes: number
+  // Participation
+  promo_interval: number
+  // Toggles
   allow_text: boolean
-  allow_video: boolean
+  allow_videos: boolean
   delete_invalid_messages: boolean
   delete_invalid_reactions: boolean
   created_at: string
@@ -142,6 +154,7 @@ export interface DbDiscordGuildConfig {
   guild_member_count: number | null
   contest_channel_id: string | null
   contest_channel_name: string | null
+  log_channel_id: string | null
   admin_role_id: string | null
   admin_role_name: string | null
   photographer_role_id: string | null
@@ -149,6 +162,23 @@ export interface DbDiscordGuildConfig {
   bot_present: boolean
   last_sync: string | null
   created_at: string
+  updated_at: string
+}
+
+export interface GuildChannel {
+  guild_id: string
+  channel_id: string
+  channel_name: string
+  channel_type: 'text' | 'announcement'
+  updated_at: string
+}
+
+export interface GuildRole {
+  guild_id: string
+  role_id: string
+  role_name: string
+  role_color: number
+  position: number
   updated_at: string
 }
 

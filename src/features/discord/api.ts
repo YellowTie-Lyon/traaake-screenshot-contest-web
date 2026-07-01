@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase/client'
-import type { DbDiscordGuildConfig, DiscordChannel, DiscordRole } from '@/lib/supabase/types'
+import type { DbDiscordGuildConfig, DiscordChannel, DiscordRole, GuildChannel, GuildRole } from '@/lib/supabase/types'
 
 export async function getGuildConfigs(environmentId: string): Promise<DbDiscordGuildConfig[]> {
   if (!supabase) return []
@@ -54,4 +54,24 @@ export async function checkBotPresence(guildId: string): Promise<boolean> {
 export async function syncDiscord(): Promise<void> {
   const res = await fetch('/api/discord/sync', { method: 'POST' })
   if (!res.ok) throw new Error('Discord sync failed')
+}
+
+export async function getGuildChannels(guildId: string): Promise<GuildChannel[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('guild_channels')
+    .select('*')
+    .eq('guild_id', guildId)
+    .order('channel_name')
+  return (data ?? []) as GuildChannel[]
+}
+
+export async function getGuildRoles(guildId: string): Promise<GuildRole[]> {
+  if (!supabase) return []
+  const { data } = await supabase
+    .from('guild_roles')
+    .select('*')
+    .eq('guild_id', guildId)
+    .order('position', { ascending: false })
+  return (data ?? []) as GuildRole[]
 }
