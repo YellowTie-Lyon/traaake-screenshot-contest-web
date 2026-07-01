@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Toaster } from "sonner";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -17,6 +18,7 @@ export default function RootLayout({
     <html lang="fr" className="dark">
       <body className="bg-background text-text-primary antialiased">
         {children}
+        <GoogleAnalytics gaId="G-159G3KNPYS" />
         <Toaster
           position="bottom-right"
           toastOptions={{
