@@ -201,12 +201,21 @@ export default function ClassementPage() {
         </motion.div>
 
         {/* Points system */}
-        <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.15 }} className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mb-6 px-4 py-3 rounded-xl bg-surface-2/50 border border-border-subtle text-xs text-text-muted">
-          <span className="font-semibold text-text-secondary uppercase tracking-wide text-[10px]">Système de points</span>
-          <span>🥇 1ère place <span className="text-text-primary font-medium">+100 pts</span></span>
-          <span>🥈 2ème place <span className="text-text-primary font-medium">+60 pts</span></span>
-          <span>🥉 3ème place <span className="text-text-primary font-medium">+30 pts</span></span>
-          <span>📸 Participation <span className="text-text-primary font-medium">+20 pts</span></span>
+        <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.15 }} className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+          {[
+            { emoji: "🥇", label: "1ère place", pts: "+100 pts", color: "#f59e0b" },
+            { emoji: "🥈", label: "2ème place", pts: "+60 pts",  color: "#9ca3af" },
+            { emoji: "🥉", label: "3ème place", pts: "+30 pts",  color: "#b45309" },
+            { emoji: "📸", label: "Participation", pts: "+20 pts", color: "#22d3ee" },
+          ].map(({ emoji, label, pts, color }) => (
+            <div key={label} className="glass flex items-center gap-3 px-4 py-3 rounded-xl border" style={{ borderColor: `${color}30` }}>
+              <span className="text-xl">{emoji}</span>
+              <div>
+                <p className="text-xs text-text-muted">{label}</p>
+                <p className="text-sm font-bold" style={{ color }}>{pts}</p>
+              </div>
+            </div>
+          ))}
         </motion.div>
 
         {/* Tabs */}
