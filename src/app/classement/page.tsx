@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Trophy, Star, Award, TrendingUp, Users, Zap, Heart, Search, X } from "lucide-react";
+import { Trophy, Star, Award, TrendingUp, Users, Zap, Heart, Search, X, ChevronLeft, ChevronRight } from "lucide-react";
 import Image from "next/image";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
@@ -43,6 +43,9 @@ export default function ClassementPage() {
   const [lbLoading, setLbLoading] = useState(false);
   const [seasonTotalParts, setSeasonTotalParts] = useState(0);
   const [uniqueWinners, setUniqueWinners] = useState(0);
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 30;
 
   const loadLeaderboard = useCallback(async (seasonId: string) => {
     setLbLoading(true);
@@ -76,9 +79,12 @@ export default function ClassementPage() {
 
   // Reload leaderboard when user switches season
   useEffect(() => {
-    if (selectedSeasonId && !loading) loadLeaderboard(selectedSeasonId);
+    if (selectedSeasonId && !loading) { setPage(0); loadLeaderboard(selectedSeasonId); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSeasonId]);
+
+  // Reset page on search
+  useEffect(() => { setPage(0); }, [search]);
 
   // Realtime: refresh contest stats + leaderboard on any relevant change
   useEffect(() => {
@@ -133,8 +139,6 @@ export default function ClassementPage() {
     total_points: m.points, participations: m.participations, wins: m.wins,
   }));
 
-  const [search, setSearch] = useState("");
-
   const seasonData = configured && !loading ? seasonEntries : mockEntries;
   const hasActiveContest = !!activeContest;
 
@@ -149,7 +153,9 @@ export default function ClassementPage() {
     : contestEntries;
 
   const top3 = filteredSeason.slice(0, 3);
-  const rest = filteredSeason.slice(3);
+  // When searching show all results; otherwise paginate
+  const pagedSeason = query ? filteredSeason : filteredSeason.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
+  const totalPages = query ? 1 : Math.ceil(filteredSeason.length / PAGE_SIZE);
 
   return (
     <div className="min-h-screen bg-background">
@@ -371,13 +377,13 @@ export default function ClassementPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                      {filteredSeason.length === 0 ? (
+                      {pagedSeason.length === 0 ? (
                         <tr><td colSpan={5} className="px-6 py-12 text-center text-sm text-text-muted">{query ? "Aucun résultat." : "Aucun participant pour cette saison."}</td></tr>
-                      ) : filteredSeason.map((member, idx) => {
+                      ) : pagedSeason.map((member, idx) => {
                         const name = member.discord_display_name ?? member.discord_username ?? member.discord_user_id.slice(0, 8);
                         const isMatch = query && normalize(name).includes(query);
                         return (
-                          <motion.tr key={member.discord_user_id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.5 + idx * 0.03 }} className={`transition-colors ${isMatch ? "bg-cyan/5 border-l-2 border-l-cyan" : "hover:bg-surface-2/50"}`}>
+                          <motion.tr key={member.discord_user_id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: idx * 0.02 }} className={`transition-colors ${isMatch ? "bg-cyan/5 border-l-2 border-l-cyan" : "hover:bg-surface-2/50"}`}>
                             <td className="px-6 py-4 whitespace-nowrap">
                               {member.rank <= 3 ? <span className="text-lg">{rankEmojis[member.rank]}</span> : <span className="text-sm font-medium text-text-muted">#{member.rank}</span>}
                             </td>
@@ -403,6 +409,34 @@ export default function ClassementPage() {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-border">
+                    <p className="text-xs text-text-muted">
+                      {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, filteredSeason.length)} sur {filteredSeason.length} membres
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setPage(p => p - 1)}
+                        disabled={page === 0}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border-subtle text-xs text-text-secondary hover:text-text-primary hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" /> Précédent
+                      </button>
+                      <span className="text-xs text-text-muted px-1">
+                        {page + 1} / {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setPage(p => p + 1)}
+                        disabled={page >= totalPages - 1}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border-subtle text-xs text-text-secondary hover:text-text-primary hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                      >
+                        Suivant <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </Card>
             </motion.div>
           </>
