@@ -155,7 +155,7 @@ export function Header() {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium bg-[#5865F2]/10 border border-[#5865F2]/30 text-[#5865F2] hover:bg-[#5865F2]/20 transition-colors"
               >
                 <DiscordIcon className="w-4 h-4" />
-                <span className="hidden sm:inline">Rejoindre le Discord</span>
+                <span className="hidden sm:inline">Participer sur Discord</span>
               </a>
             </div>
           </div>
