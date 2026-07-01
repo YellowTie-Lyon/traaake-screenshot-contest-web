@@ -124,7 +124,7 @@ export async function getSeasonLeaderboard(seasonId?: string): Promise<Leaderboa
   for (const row of parts as any[]) {
     const pid = row.participant_id
     const cur = agg.get(pid) ?? { points: 0, wins: 0, participations: 0, totalVotes: 0, meta: row.participant }
-    const pts = row.final_rank != null ? (POINTS[row.final_rank] ?? PARTICIPATION_POINTS) : PARTICIPATION_POINTS
+    const pts = (POINTS[row.final_rank] ?? 0) + PARTICIPATION_POINTS
     agg.set(pid, {
       points: cur.points + pts,
       wins: cur.wins + (row.is_winner ? 1 : 0),
