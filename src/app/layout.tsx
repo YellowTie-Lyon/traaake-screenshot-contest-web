@@ -3,8 +3,9 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "TraKr Concours Screenshot",
-  description: "Classement et gagnants du concours screenshot hebdomadaire TraKr MSFS",
+  title: "TraaaKe — Créateur de contenu Microsoft Flight Simulator",
+  description: "Classement, gagnants et concours screenshot hebdomadaire de TraaaKe, créateur de contenu sur Microsoft Flight Simulator.",
+  icons: { icon: "/logo.png" },
 };
 
 export default function RootLayout({

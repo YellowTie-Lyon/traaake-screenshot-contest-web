@@ -55,7 +55,7 @@ function TikTokIcon({ className }: { className?: string }) {
 
 const socialLinks = [
   { href: "https://twitch.tv/traaake", icon: TwitchIcon, label: "Twitch" },
-  { href: "https://youtube.com/@traaakereplay", icon: YouTubeIcon, label: "YouTube" },
+  { href: "https://www.youtube.com/@traaake", icon: YouTubeIcon, label: "YouTube" },
   { href: "https://discord.gg/Qc459c4Pzr", icon: DiscordIcon, label: "Discord" },
   { href: "https://twitter.com/TraaaKe", icon: XIcon, label: "X / Twitter" },
   { href: "https://instagram.com/traaake.tv", icon: InstagramIcon, label: "Instagram" },
@@ -112,7 +112,7 @@ export function Header() {
                   TraaaKe
                 </span>
                 <span className="text-[10px] text-text-secondary font-medium tracking-wide hidden sm:block">
-                  Créateur de contenu sur MSFS depuis 2022
+                  Créateur de contenu sur Microsoft Flight Simulator
                 </span>
               </div>
             </Link>
