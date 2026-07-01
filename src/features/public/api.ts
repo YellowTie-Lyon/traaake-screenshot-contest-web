@@ -32,7 +32,7 @@ export interface WinnerEntry {
   vote_count: number
 }
 
-// Active contest leaderboard — ordered by votes
+// Active contest leaderboard — ordered by votes, valid entries only
 export async function getActiveContestLeaderboard(environmentId: string): Promise<CurrentContestEntry[]> {
   if (!supabase) return []
   const { data } = await supabase
@@ -54,6 +54,7 @@ export async function getActiveContestLeaderboard(environmentId: string): Promis
     `)
     .in('contest.status', ['active', 'tiebreak'])
     .eq('contest.environment_id', environmentId)
+    .eq('is_valid', true)
     .order('vote_count', { ascending: false })
 
   if (!data) return []
@@ -70,7 +71,10 @@ export async function getActiveContestLeaderboard(environmentId: string): Promis
   }))
 }
 
-// Season leaderboard — cumulated points
+const POINTS: Record<number, number> = { 1: 100, 2: 60, 3: 30 }
+const PARTICIPATION_POINTS = 20
+
+// Season leaderboard — points computed from participations.final_rank
 export async function getSeasonLeaderboard(seasonId?: string): Promise<LeaderboardEntry[]> {
   if (!supabase) return []
 
@@ -85,56 +89,62 @@ export async function getSeasonLeaderboard(seasonId?: string): Promise<Leaderboa
   }
   if (!sid) return []
 
-  // Base: all participants with historical win/participation counts
-  const { data: participants } = await supabase
-    .from('participants')
-    .select('id, discord_user_id, discord_username, discord_display_name, avatar_url, win_count, participation_count')
-    .gt('participation_count', 0)
-
-  if (!participants || participants.length === 0) return []
-
-  // points_ledger has no season_id column — resolve via season's contests
+  // All closed contests for this season
   const { data: seasonContests } = await supabase
     .from('contests')
     .select('id')
     .eq('season_id', sid)
+    .eq('status', 'closed')
   const contestIds = (seasonContests ?? []).map(c => c.id)
+  if (contestIds.length === 0) return []
 
-  const pointsMap = new Map<string, number>()
+  // All valid participations with participant info
+  const { data: parts } = await supabase
+    .from('participations')
+    .select(`
+      participant_id,
+      final_rank,
+      is_winner,
+      participant:participant_id (
+        discord_user_id,
+        discord_username,
+        discord_display_name,
+        avatar_url
+      )
+    `)
+    .in('contest_id', contestIds)
+    .eq('is_valid', true)
 
-  if (contestIds.length > 0) {
-    const { data: contestPoints } = await supabase
-      .from('points_ledger')
-      .select('participant_id, points')
-      .in('contest_id', contestIds)
-    for (const row of contestPoints ?? []) {
-      pointsMap.set(row.participant_id, (pointsMap.get(row.participant_id) ?? 0) + row.points)
+  if (!parts || parts.length === 0) return []
+
+  // Aggregate points per participant
+  const agg = new Map<string, { points: number; wins: number; participations: number; meta: unknown }>()
+  for (const row of parts as any[]) {
+    const pid = row.participant_id
+    const cur = agg.get(pid) ?? { points: 0, wins: 0, participations: 0, meta: row.participant }
+    const pts = row.final_rank != null ? (POINTS[row.final_rank] ?? PARTICIPATION_POINTS) : PARTICIPATION_POINTS
+    agg.set(pid, {
+      points: cur.points + pts,
+      wins: cur.wins + (row.is_winner ? 1 : 0),
+      participations: cur.participations + 1,
+      meta: cur.meta ?? row.participant,
+    })
+  }
+
+  const entries: LeaderboardEntry[] = Array.from(agg.entries()).map(([, d]) => {
+    const p = d.meta as any
+    return {
+      rank: 0,
+      discord_user_id: p?.discord_user_id ?? '',
+      discord_username: p?.discord_username ?? null,
+      discord_display_name: p?.discord_display_name ?? null,
+      avatar_url: p?.avatar_url ?? null,
+      total_points: d.points,
+      participations: d.participations,
+      wins: d.wins,
     }
-  }
+  })
 
-  // Manual adjustments (contest_id IS NULL) — apply across all seasons
-  const { data: manualPoints } = await supabase
-    .from('points_ledger')
-    .select('participant_id, points')
-    .is('contest_id', null)
-  for (const row of manualPoints ?? []) {
-    pointsMap.set(row.participant_id, (pointsMap.get(row.participant_id) ?? 0) + row.points)
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const entries: LeaderboardEntry[] = (participants as any[]).map(p => ({
-    rank: 0,
-    discord_user_id: p.discord_user_id ?? p.id,
-    discord_username: p.discord_username ?? null,
-    discord_display_name: p.discord_display_name ?? null,
-    avatar_url: p.avatar_url ?? null,
-    // Fall back to win_count when no ledger points exist yet (historical data)
-    total_points: pointsMap.get(p.id) ?? (p.win_count ?? 0),
-    participations: p.participation_count ?? 0,
-    wins: p.win_count ?? 0,
-  }))
-
-  // Sort: points first, then wins, then participations
   entries.sort((a, b) =>
     b.total_points !== a.total_points ? b.total_points - a.total_points :
     b.wins !== a.wins ? b.wins - a.wins :
@@ -242,49 +252,6 @@ export async function getSeasonParticipantStats(): Promise<{ totalParticipations
   }
 }
 
-export async function getSeasonTotalVotes(seasonId?: string): Promise<number> {
-  if (!supabase) return 0
-  let sid = seasonId
-  if (!sid) {
-    const { data: season } = await supabase
-      .from('seasons')
-      .select('id')
-      .eq('is_active', true)
-      .single()
-    sid = season?.id
-  }
-  if (!sid) return 0
-
-  const { data } = await supabase
-    .from('participations')
-    .select('vote_count, contest:contest_id!inner(season_id)')
-    .eq('contest.season_id', sid)
-
-  if (!data) return 0
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data as any[]).reduce((sum, r) => sum + (r.vote_count ?? 0), 0)
-}
-
-export async function getSeasonTotalParticipations(seasonId?: string): Promise<number> {
-  if (!supabase) return 0
-  let sid = seasonId
-  if (!sid) {
-    const { data: season } = await supabase
-      .from('seasons')
-      .select('id')
-      .eq('is_active', true)
-      .single()
-    sid = season?.id
-  }
-  if (!sid) return 0
-
-  const { count } = await supabase
-    .from('participations')
-    .select('id, contest:contest_id!inner(season_id)', { count: 'exact', head: true })
-    .eq('contest.season_id', sid)
-
-  return count ?? 0
-}
 
 export async function getActiveEnvironment() {
   if (!supabase) return null
