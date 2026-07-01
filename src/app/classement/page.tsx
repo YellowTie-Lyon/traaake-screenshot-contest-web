@@ -217,9 +217,9 @@ export default function ClassementPage() {
         </motion.div>
 
         {/* Tabs */}
-        <div className="flex items-center gap-2 mb-8 flex-wrap">
+        <div className="flex flex-col gap-2 mb-8 sm:flex-row sm:items-center sm:flex-wrap">
           {/* Season selector pills */}
-          <div className="flex items-center gap-1.5 flex-wrap">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 sm:flex-wrap">
             {(configured && seasons.length > 0 ? seasons : [{ id: 'mock', name: 'Année 2026', is_active: true, started_at: null, ended_at: null }]).map(s => (
               <button
                 key={s.id}
