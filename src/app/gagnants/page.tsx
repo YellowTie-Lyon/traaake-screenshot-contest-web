@@ -55,7 +55,8 @@ export default function GagnantsPage() {
 
   useEffect(() => {
     if (!configured) { setLoading(false); return; }
-    Promise.all([getSeasons(), getActiveEnvironment()]).then(async ([allSeasons, env]) => {
+    getSeasons().then(async (allSeasons) => {
+      const env = getActiveEnvironment();
       setSeasons(allSeasons);
       if (!env) { setLoading(false); return; }
       setEnvId(env.id);
