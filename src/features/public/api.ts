@@ -221,7 +221,7 @@ export async function getActiveContestPublic(environmentId?: string) {
   if (!supabase) return null
   let query = supabase
     .from('contests')
-    .select('id, title, status, started_at, ends_at, closed_at, total_participations, total_votes, environment_id')
+    .select('id, title, status, started_at, ends_at, closed_at, environment_id')
     .in('status', ['active', 'tiebreak'])
     .order('started_at', { ascending: false })
     .limit(1)

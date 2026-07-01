@@ -38,7 +38,7 @@ export default function ClassementPage() {
   const [selectedSeasonId, setSelectedSeasonId] = useState<string | null>(null);
   const [seasonEntries, setSeasonEntries] = useState<LeaderboardEntry[]>([]);
   const [contestEntries, setContestEntries] = useState<CurrentContestEntry[]>([]);
-  const [activeContest, setActiveContest] = useState<{ id: string; total_participations: number; total_votes: number; title: string | null; status: string; started_at: string | null; ends_at: string | null } | null>(null);
+  const [activeContest, setActiveContest] = useState<{ id: string; title: string | null; status: string; started_at: string | null; ends_at: string | null } | null>(null);
   const [loading, setLoading] = useState(configured);
   const [lbLoading, setLbLoading] = useState(false);
   const [seasonTotalParts, setSeasonTotalParts] = useState(0);
@@ -108,8 +108,6 @@ export default function ClassementPage() {
         const updated = payload.new as any;
         setActiveContest(prev => prev ? {
           ...prev,
-          total_participations: updated.total_participations ?? prev.total_participations,
-          total_votes: updated.total_votes ?? prev.total_votes,
           status: updated.status ?? prev.status,
         } : null);
         refreshLeaderboard();
