@@ -252,9 +252,9 @@ export default function ClassementPage() {
               }`}>
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse flex-shrink-0" />
                 📸 Concours du{' '}
-                {activeContest.started_at ? new Date(activeContest.started_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—'}
+                {activeContest.started_at ? new Date(activeContest.started_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                 {' '}au{' '}
-                {activeContest.ends_at ? new Date(activeContest.ends_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }) : '—'}
+                {activeContest.ends_at ? new Date(activeContest.ends_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'}
                 {activeContest.status === 'tiebreak' && <span className="text-xs text-amber-400 font-bold">⚡ Égalité</span>}
               </span>
             </button>
